@@ -1,0 +1,5 @@
+
+- standard：标准模式，栈结构，先进先出
+- singleTop：栈顶已有，则调用onNewIntent()
+- singleTask：栈顶已有，则移除栈顶所有Activity，并调用onNewIntent()
+- singleInstance：单一栈，一个Activity单独一个栈

@@ -1,0 +1,29 @@
+帧动画：
+    AnimationDrawable
+
+---------------------------
+
+补间动画：
+    Animation
+        TranslateAnimation
+        ScaleAnimation
+        AlphaAnimation
+        RotateAnimation
+
+    不改变真实坐标和属性
+    参考：https://blog.csdn.net/weixin_41205419/article/details/85038275
+
+---------------------------
+
+属性动画：
+    Animator
+        ObjectAnimator
+
+    真实坐标和属性发生变化。
+    使用了反射机制，效率低。
+    方法内部调取的类似于 invalidate 的方法，需要不断刷新，cpu 资源消耗大，内存占用也大。
+    Animator 是在 Animation 后出现的。
+    Animator 适用于任意对象，但是 Animation 只适用于 View 对象。
+    参考：https://blog.csdn.net/weixin_41205419/article/details/85038275
+
+---------------------------

@@ -1,0 +1,8 @@
+
+- onCreate：创建
+- onStart：前台可见
+- onResume：获取焦点，可交互
+- onPause：失去焦点
+- onStop：进入后台
+- onDestroy：销毁
+- onRestart：后台页面返回前台
