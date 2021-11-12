@@ -1,6 +1,6 @@
 # gradle之页面路由项目笔记
 
-## router插件开发步骤
+## 第一节：router插件开发步骤
 
 ### 1、创建插件工程
 
@@ -168,7 +168,7 @@ router {
 }
 ```
 
-## APT采集页面路由信息
+## 第二节：APT采集页面路由信息
 
 ### 1、建立Annotation工程
 
@@ -661,9 +661,10 @@ dependencies {
 }
 ```
 
-com.watayouxiang.router.processor.DestinationProcessor#process 中添加代码：
+com.watayouxiang.router.processor.DestinationProcessor#process 中添加如下代码，用于获取 kapt 的参数 root_project_dir。
 
 ```
+// com.watayouxiang.router.processor.DestinationProcessor#process 中添加如下代码：
 // 获取 kapt 的参数 root_project_dir
 String rootDir = processingEnv.getOptions().get("root_project_dir");
 System.out.println(TAG + " >>> rootDir = " + rootDir);
@@ -672,7 +673,7 @@ System.out.println(TAG + " >>> rootDir = " + rootDir);
 // >>> rootDir = /Users/TaoWang/Desktop/gradle_demo/gradle_router
 ```
 
-## 字节码插桩实现路由组件自动注册
+## ASM实现路由组件自动注册
 
 ### 1、字节码插桩技术说明
 
