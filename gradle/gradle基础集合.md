@@ -333,7 +333,7 @@ $ ./gradlew clean -q
 // 在app module 的 build.gradle中写入
 task testTask(){
 	doLast{
-		println(“我是 testTask 任务”)
+		println("我是 testTask 任务")
 	}
 }
 
@@ -345,16 +345,16 @@ $ ./gradlew :app:testTask -q
 ```groovy
 // 在app module 的 build.gradle中写入
 task testTask(){
-	doLast{
-		println(“我是 testTask 任务”)
-	}
+    doLast{
+        println("我是 testTask 任务")
+    }
 }
 
 task test2(){
-	dependsOn testTask
-	doLast{
-		println(“我是 testTask 任务”)
-	}
+    dependsOn testTask
+    doLast{
+        println("我是 test2 任务")
+    }
 }
 
 $ ./gradlew :app:test2 -q

@@ -1,576 +1,443 @@
 # gradle之页面路由项目笔记
 
-## gradle插件开发步骤
+## router插件开发步骤
 
-### 1、建立插件工程，实现插件内部逻辑
+### 1、创建插件工程
 
 建立 buildSrc 目录
 
 建立 build.gradle
 
-- ```
-  // 引用 groovy 插件，编译插件工程中的代码
-  apply plugin: 'groovy'
-  
-  // 声明仓库的地址
-  repositories {
-      jcenter()
-  }
-  
-  // 声明依赖的包
-  dependencies {
-      implementation gradleApi()
-      implementation localGroovy()
-  }
-  ```
-
-建立 src/main/groovy/com.imooc.router.gradle.RouterExtension
-
-- ```
-  class RouterExtension {
-      String wikiDir
-  }
-  ```
-
-建立 src/main/groovy/com.imooc.router.gradle.RouterPlugin
-
-- ```
-  class RouterPlugin implements Plugin<Project> {
-      // 实现apply方法，注入插件的逻辑
-      @Override
-      void apply(Project project) {
-          println("i am from RouterPlugin, apply from ${project.name}")
-  
-          // 创建 Extension
-          project.getExtensions().create("router", RouterExtension)
-  
-          // 获取 Extension
-          project.afterEvaluate {
-              RouterExtension extension = project["router"]
-              println("用户设置的 wikiDir 路径：${extension.wikiDir}")
-          }
-      }
-  }
-  ```
-
-建立 resources/gradle-plugins/com.imooc.router.properties
-
-- ```
-  implementation-class=com.imooc.router.gradle.RouterPlugin
-  ```
-
-### 2、发布插件到本地maven仓库
-
-拷贝一份插件工程 buildSrc，重命名为 router-gradle-plugin
-
-- ```
-  // 将 buildSrc 复制一份，名字叫 router-gradle-plugin
-  $ cp -rf buildSrc router-gradle-plugin
-  ```
-
-router-gradle-plugin 工程的 build.gradle 添加如下
-
-- ```
-  // 调用 maven 插件，用于发布自己的插件
-  apply plugin: 'maven'
-  
-  // 配置 maven 插件中的 uploadArchives 任务
-  uploadArchives {
-      repositories {
-          mavenDeployer {
-              // 设置发布路径为 工程根目录下面的 repo 文件夹
-              repository(url: uri('../repo')) {
-                  // 设置groupId，通常为包名
-                  pom.groupId = 'com.imooc.router'
-                  // 设置artifactId，为当前插件的名称
-                  pom.artifactId = 'router-gradle-plugin'
-                  // 设置插件版本号
-                  pom.version = '1.0.0'
-              }
-          }
-      }
-  }
-  
-  // 执行发布命令：terminal 中输入
-  // $ ./gradlew :router-gradle-plugin:uploadArchives
-  ```
-
-### 3、使用插件
-
-**1）使用buildSrc中的插件**
-
-未发布的插件指 buildSrc 目录中的插件
-
-app module 的 build.gradle 中写入
-
-- ```
-  // 应用自己的插件
-  apply plugin: 'com.imooc.router'
-  
-  // 向路由插件传递参数
-  router {
-      wikiDir getRootDir().absolutePath
-  }
-  ```
-
-**2）使用发布到本地maven仓库的插件**
-
-根目录 build.gradle 添加如下
-
-- ```
-  buildscript {
-      // 插件所在的仓库
-      repositories {
-          /**
-           * 配置maven仓库地址
-           * 这里可以是相对路径地址，也可以是绝对路径地址
-           */
-          maven {
-              url uri("/Users/TaoWang/Documents/Code/github/Android/repo")
-          }
-  
-          google()
-          jcenter()
-      }
-  
-      // gradle 插件
-      dependencies {
-          classpath 'com.android.tools.build:gradle:4.1.3'
-  
-          /**
-           * 声明依赖的插件
-           * 形式是：groupId : artifactId : version
-           */
-          classpath 'com.imooc.router:router-gradle-plugin:1.0.0'
-      }
-  }
-  
-  allprojects {
-      // 工程依赖所在的仓库
-      repositories {
-          /**
-           * 配置maven仓库地址
-           * 这里可以是相对路径地址，也可以是绝对路径地址
-           */
-          maven {
-              url uri("/Users/TaoWang/Documents/Code/github/Android/repo")
-          }
-  
-          google()
-          jcenter()
-      }
-  }
-  ```
-
-app module 的 build.gradle 中写入
-
-- ```
-  // 应用自己的插件
-  apply plugin: 'com.imooc.router'
-  
-  // 向路由插件传递参数
-  router {
-      wikiDir getRootDir().absolutePath
-  }
-  ```
-
-## 为gradle插件添加文档生成功能
-
-### 思路解析
-
-1、将路径参数 root_project_dir 传递到 kapt 注解处理器中。从而避免需要手动在app module的 build.gradle 中配置如下信息。
-
 ```
-kapt {
-	arguments {
-		arg("root_project_dir", rootProject.projectDir.absolutePath)
-	}
+// 引用 groovy 插件，编译插件工程中的代码
+apply plugin: 'groovy'
+
+// 声明仓库的地址
+repositories {
+    jcenter()
+}
+
+// 声明依赖的包
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
 }
 ```
 
-2、实现旧的构建产物的自动清理：删除上一次构建生成的 router_mapping 目录
-
-3、在 javac 任务 (compileDebugJavaWithJavac) 后，汇总生成文档
+建立 src/main/groovy/com/watayouxiang/router/gradle/RouterExtension.groovy
 
 ```
-// 可以在 setting.gradle 中打印本次构建执行的所有任务的名称，从而知晓 javac 任务的名称
-gradle.taskGraph.beforeTask { task ->
- println("[all-task] " + task.name)
+package com.watayouxiang.router.gradle
+
+class RouterExtension {
+    String wikiDir
 }
-
-// $ ./gradlew :androiddemo:assembleDebug -q
 ```
 
-### 编码内容
+建立 src/main/groovy/com/watayouxiang/router/gradle/RouterPlugin.groovy
 
-router-gradle-plugin 项目 com.imooc.router.gradle.RouterPlugin 编码如下：
+```
+package com.watayouxiang.router.gradle
 
-- ```
-  class RouterPlugin implements Plugin<Project> {
+import org.gradle.api.Plugin
+import org.gradle.api.Project
+
+class RouterPlugin implements Plugin<Project> {
     // 实现apply方法，注入插件的逻辑
     @Override
     void apply(Project project) {
-  
-        // 1、自动帮助用户传递路径参数到注解处理器中
-        //     kapt {
-        //        arguments {
-        //            arg("root_project_dir", rootProject.projectDir.absolutePath)
-        //        }
-        //    }
-        if (project.extensions.findByName("kapt") != null) {
-            project.extensions.findByName("kapt").arguments {
-                arg("root_project_dir", project.rootProject.projectDir.absolutePath)
-            }
-        }
-  
-        // 2、实现旧的构建产物的自动清理
-        project.clean.doFirst {
-            // 删除上一次构建生成的 router_mapping 目录
-            File routerMappingDir = new File(project.rootProject.projectDir, "router_mapping")
-            if (routerMappingDir.exists()) {
-                routerMappingDir.deleteDir()
-            }
-        }
-  
         println("i am from RouterPlugin, apply from ${project.name}")
-  
+
         // 创建 Extension
         project.getExtensions().create("router", RouterExtension)
-  
+
         // 获取 Extension
         project.afterEvaluate {
             RouterExtension extension = project["router"]
             println("用户设置的 wikiDir 路径：${extension.wikiDir}")
-  
-            // 3、在 javac 任务 (compileDebugJavaWithJavac) 后，汇总生成文档
-            project.tasks.findAll { task ->
-                task.name.startsWith('compile') && task.name.endsWith('JavaWithJavac')
-            } each { task ->
-                task.doLast {
-                    File routerMappingDir = new File(project.rootProject.projectDir, "router_mapping")
-                    if (!routerMappingDir.exists()) {
-                        return
-                    }
-                    File[] allChildFiles = routerMappingDir.listFiles()
-                    if (allChildFiles.length < 1) {
-                        return
-                    }
-  
-                    StringBuilder markdownBuilder = new StringBuilder()
-                    markdownBuilder.append("# 页面文档\n\n")
-                    allChildFiles.each { child ->
-                        if (child.name.endsWith(".json")) {
-                            JsonSlurper jsonSlurper = new JsonSlurper()
-                            def content = jsonSlurper.parse(child)
-                            content.each { innerContent ->
-                                def url = innerContent['url']
-                                def description = innerContent['description']
-                                def realPath = innerContent['realPath']
-                                markdownBuilder.append("## $description\n")
-                                markdownBuilder.append("- url: $url\n")
-                                markdownBuilder.append("- realPath: $realPath\n\n")
-                            }
-                        }
-                    }
-  
-                    File wikiFileDir = new File(extension.wikiDir)
-                    if (!wikiFileDir.exists()) {
-                        wikiFileDir.mkdir()
-                    }
-                    File wikiFile = new File(wikiFileDir, "页面文档.md")
-                    if (wikiFile.exists()) {
-                        wikiFile.delete()
-                    }
-                    wikiFile.write(markdownBuilder.toString())
-                }
-            }
-            
         }
     }
-  }
-  ```
+}
+```
 
-测试 MD文档 是否生成
+建立 src/main/resources/META-INF/gradle-plugins/com.watayouxiang.router.properties
 
-- ```
-  // 测试 MD文档 是否生成
-  $ ./gradlew clean -q
-  $ ./gradlew :androiddemo:assembleDebug -q
-  ```
+```
+implementation-class=com.watayouxiang.router.gradle.RouterPlugin
+```
 
-使用注意事项
+### 2、发布插件到本地仓库
 
-- ```
-  // --------------------------
-  // 在 app module 的 build.gradle 中，“router插件” 需要在 “kotlin插件” 之后声明使用
-  // 
-  // 因为：需要在 com.imooc.router.gradle.RouterPlugin 中获取 kapt 的 extension
-  // 所以：“router插件” 需要在 “kotlin插件” 之后声明
-  // --------------------------
-  
-  // kotlin 插件
-  apply plugin: 'kotlin-android'
-  apply plugin: 'kotlin-kapt'
-  
-  // 应用自己的插件
-  apply plugin: 'com.imooc.router'
-  router {
-      wikiDir getRootDir().absolutePath
-  }
-  ```
+拷贝一份插件工程 buildSrc，重命名为 router-gradle-plugin
+
+router-gradle-plugin 工程的 build.gradle 添加如下
+
+```
+// 调用 maven 插件，用于发布自己的插件
+apply plugin: 'maven'
+
+// 配置 maven 插件中的 uploadArchives 任务
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            // 设置发布路径为 工程根目录下面的 repo 文件夹
+            repository(url: uri('../repo')) {
+                // 设置groupId，通常为包名
+                pom.groupId = 'com.watayouxiang.router'
+                // 设置artifactId，为当前插件的名称
+                pom.artifactId = 'router-gradle-plugin'
+                // 设置插件版本号
+                pom.version = '1.0.0'
+            }
+        }
+    }
+}
+```
+
+settings.gradle中添加如下：
+
+```
+include ':router-gradle-plugin'
+
+// 执行发布命令：terminal 中输入
+// $ ./gradlew :router-gradle-plugin:uploadArchives
+```
+
+### 3、使用buildSrc中的插件
+
+未发布的插件是指 buildSrc 目录中的插件
+
+app module 的 build.gradle 中写入
+
+```
+// 应用自己的插件
+apply plugin: 'com.watayouxiang.router'
+
+// 向路由插件传递参数
+router {
+    wikiDir getRootDir().absolutePath
+}
+
+// 控制台输入：
+// $./gradlew clean -q
+//
+// 回显：
+// i am from RouterPlugin, apply from app
+// 用户设置的 wikiDir 路径：/Users/TaoWang/Desktop/gradle_demo/gradle_router
+// 
+// 说明应用 buildSrc 插件成功
+```
+
+### 4、使用本地仓库的插件
+
+根目录 build.gradle 添加如下
+
+```
+buildscript {
+    // gradle 插件所在的仓库
+    repositories {
+        /**
+         * 配置maven仓库地址
+         * 这里可以是相对路径地址，也可以是绝对路径地址
+         */
+        maven {
+            url uri("/Users/TaoWang/Desktop/gradle_demo/gradle_router/repo")
+        }
+    }
+
+    // gradle 插件
+    dependencies {
+        /**
+         * 声明依赖的插件
+         * 形式是：groupId : artifactId : version
+         */
+        classpath 'com.watayouxiang.router:router-gradle-plugin:1.0.0'
+    }
+}
+```
+
+app module 的 build.gradle 中写入
+
+```
+// 应用自己的插件
+apply plugin: 'com.watayouxiang.router'
+
+// 向路由插件传递参数
+router {
+    wikiDir getRootDir().absolutePath
+}
+```
 
 ## APT采集页面路由信息
 
-### 1、建立router-annotations注解工程
+### 1、建立Annotation工程
 
 建立 router-annotations 目录
 
-添加 build.gradle
+```
+// ----------------------------
+// 新建 module 的 build.gradle
+// ----------------------------
+// 应用 java 插件
+apply plugin: 'java'
 
-- ```
-  // 应用 java 插件
-  apply plugin: 'java'
-  
-  // 设置源码兼容性
-  targetCompatibility = JavaVersion.VERSION_1_7
-  sourceCompatibility = JavaVersion.VERSION_1_7
-  ```
+// 设置源码兼容性
+targetCompatibility = JavaVersion.VERSION_1_7
+sourceCompatibility = JavaVersion.VERSION_1_7
 
-创建注解 src/main/java/com.imooc.router.annotations.Destination
+// ----------------------------
+// setttings.gradle 中添加
+// ----------------------------
+include ':router-annotations'
+```
 
-- ```
-  /**
-   * 说明当前注解可以修饰的元素，此处表示可以用于标记在类上面
-   */
-  @Target({ElementType.TYPE})
-  /**
-   * 说明当前注解可以被保留的时间
-   */
-  @Retention(RetentionPolicy.CLASS)
-  public @interface Destination {
-      /**
-       * 当前页面的url，不能为空
-       *
-       * @return 页面的url
-       */
-      String url();
-  
-      /**
-       * 对于当前页面的中文描述
-       *
-       * @return 例如："个人主页"
-       */
-      String description();
-  }
-  ```
+创建注解 src/main/java/com/watayouxiang/router/annotations/Destination.java
 
-### 2、建立router-processor注解处理器工程
+```
+package com.watayouxiang.router.annotations;
 
-添加 build.gradle
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-- ```
-  // 引入java插件，帮助编译代码
-  apply plugin: 'java'
-  
-  dependencies {
-      implementation project(':router-annotations')
-      
-      // 使用google的注解处理器，@AutoService(Processor.class)
-      // 会帮助自动创建 META-INF/services/javax.annotation.processing.Processor 文件
-      implementation 'com.google.auto.service:auto-service:1.0-rc6'
-      annotationProcessor 'com.google.auto.service:auto-service:1.0-rc6'
-  }
-  ```
+@Target({ElementType.TYPE})// 说明当前注解可以修饰的元素，此处表示可以用于标记在类上面
+@Retention(RetentionPolicy.CLASS)// 说明当前注解可以被保留的时间
+public @interface Destination {
+    /**
+     * 当前页面的url，不能为空
+     *
+     * @return 页面的url
+     */
+    String url();
 
-创建注解处理器 src/main/java/com.imooc.router.processor.DestinationProcessor
+    /**
+     * 对于当前页面的中文描述
+     *
+     * @return 例如："个人主页"
+     */
+    String description();
+}
+```
 
-- ```
-  /**
-   * 告诉 javac 加载注解处理器 DestinationProcessor
-   * <p>
-   * 会帮助自动创建 META-INF/services/javax.annotation.processing.Processor 文件
-   */
-  @AutoService(Processor.class)
-  public class DestinationProcessor extends AbstractProcessor {
-  
-      private static final String TAG = "DestinationProcessor";
-  
-      /**
-       * 编译器找到我们关心的注解后，会回调这个方法
-       *
-       * @param set
-       * @param roundEnvironment
-       * @return
-       */
-      @Override
-      public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
-          // 避免多次调用 process
-          if (roundEnvironment.processingOver()) {
-              return false;
-          }
-  
-          System.out.println(TAG + " >>> process start ...");
-  
-          // 获取所有标记了 @Destination 注解的 类的信息
-          Set<Element> allDestinationElements = (Set<Element>) roundEnvironment.getElementsAnnotatedWith(Destination.class);
-  
-          System.out.println(TAG + " >>> all Destination elements count = " + allDestinationElements.size());
-  
-          // 当未收集到 @Destination 注解的时候，跳过后续流程
-          if (allDestinationElements.size() < 1) {
-              return false;
-          }
-  
-          // 将要自动生成的类的类名
-          String className = "RouterMapping_" + System.currentTimeMillis();
-  
-          StringBuilder builder = new StringBuilder();
-  
-          builder.append("package com.watayouxiang.androiddemo.mapping;\n\n");
-          builder.append("import java.util.HashMap;\n");
-          builder.append("import java.util.Map;\n\n");
-          builder.append("public class ").append(className).append(" {\n\n");
-          builder.append("    public static Map<String, String> get() {\n");
-          builder.append("        Map<String, String> mapping = new HashMap<>();\n\n");
-  
-  
-          final JsonArray destinationJsonArray = new JsonArray();
-  
-          // 遍历所有 @Destination 注解信息，挨个获取详细信息
-          for (Element element : allDestinationElements) {
-  
-              final TypeElement typeElement = (TypeElement) element;
-  
-              // 尝试在当前类上，获取 @Destination 的信息
-              final Destination destination = typeElement.getAnnotation(Destination.class);
-  
-              if (destination == null) continue;
-  
-              final String url = destination.url();
-              final String description = destination.description();
-              // 获取注解当前类的全类名
-              final String realPath = typeElement.getQualifiedName().toString();
-  
-              System.out.println(TAG + " >>> url = " + url);
-              System.out.println(TAG + " >>> description = " + description);
-              System.out.println(TAG + " >>> realPath = " + realPath);
-  
-              builder.append("        ")
-                      .append("mapping.put(")
-                      .append("\"" + url + "\"")
-                      .append(", ")
-                      .append("\"" + realPath + "\"")
-                      .append(");\n");
-  
-              // 组装json对象
-              JsonObject item = new JsonObject();
-              item.addProperty("url", url);
-              item.addProperty("description", description);
-              item.addProperty("realPath", realPath);
-  
-              destinationJsonArray.add(item);
-          }
-  
-          builder.append("\n");
-          builder.append("        return mapping;\n");
-          builder.append("    }\n\n");
-          builder.append("}\n");
-  
-          String mappingFullClassName = "com.watayouxiang.androiddemo.mapping." + className;
-  
-          System.out.println(TAG + " >>> mappingFullClassName = " + mappingFullClassName);
-          System.out.println(TAG + " >>> class content = \n" + builder);
-  
-  
-          // 写入自动生成的类到本地文件中
-          try {
-              JavaFileObject source = processingEnv.getFiler().createSourceFile(mappingFullClassName);
-              Writer writer = source.openWriter();
-              writer.write(builder.toString());
-              writer.flush();
-              writer.close();
-          } catch (Exception e) {
-              throw new RuntimeException("Error while create file", e);
-          }
-  
-  
-          // 写入json到本地文件中
-          // 获取 kapt 的参数 root_project_dir
-          String rootDir = processingEnv.getOptions().get("root_project_dir");
-          
-          File rootDirFile = new File(rootDir);
-          if (!rootDirFile.exists()) {
-              throw new RuntimeException("root_project_dir not exist!");
-          }
-  
-          File routerFileDir = new File(rootDirFile, "router_mapping");
-          if (!routerFileDir.exists()) {
-              routerFileDir.mkdir();
-          }
-  
-          File mappingFile = new File(routerFileDir, "mapping_" + System.currentTimeMillis() + ".json");
-  
-          try {
-              BufferedWriter out = new BufferedWriter(new FileWriter(mappingFile));
-              String jsonStr = destinationJsonArray.toString();
-              out.write(jsonStr);
-              out.flush();
-              out.close();
-          } catch (Exception e) {
-              throw new RuntimeException("Error while writing json", e);
-          }
-  
-  
-          System.out.println(TAG + " >>> process finish ...");
-  
-          return false;
-      }
-  
-      /**
-       * 告诉编译器，当前处理器支持的注解类型
-       *
-       * @return
-       */
-      @Override
-      public Set<String> getSupportedAnnotationTypes() {
-          return Collections.singleton(
-                  Destination.class.getCanonicalName()
-          );
-      }
-  }
-  ```
+### 2、建立APT工程
 
-### 3、应用注解
+建立 router-processor 目录
 
-settings.gradle 添加
+```
+// ----------------------------
+// 新建 module 的 build.gradle
+// ----------------------------
+apply plugin: 'java'
 
-- ```
-  include ':router-annotations'
-  include ':router-processor'
-  ```
+dependencies {
+    implementation project(':router-annotations')
+
+    // 使用google的注解处理器，@AutoService(Processor.class)
+    // 会帮助自动创建 META-INF/services/javax.annotation.processing.Processor 文件
+    implementation 'com.google.auto.service:auto-service:1.0-rc6'
+    annotationProcessor 'com.google.auto.service:auto-service:1.0-rc6'
+    
+    implementation 'com.google.code.gson:gson:2.8.1'
+}
+
+// ----------------------------
+// setttings.gradle 中添加
+// ----------------------------
+include ':router-processor'
+```
+
+创建注解处理器 src/main/java/com/watayouxiang/router/processor/DestinationProcessor.java
+
+```
+package com.watayouxiang.router.processor;
+
+import com.google.auto.service.AutoService;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.watayouxiang.router.annotations.Destination;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.Writer;
+import java.util.Collections;
+import java.util.Set;
+
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
+import javax.tools.JavaFileObject;
+
+/**
+ * 告诉 javac 加载注解处理器 DestinationProcessor
+ * <p>
+ * 会帮助自动创建 META-INF/services/javax.annotation.processing.Processor 文件
+ */
+@AutoService(Processor.class)
+public class DestinationProcessor extends AbstractProcessor {
+
+    private static final String TAG = "DestinationProcessor";
+
+    /**
+     * 告诉编译器，当前处理器支持的注解类型
+     */
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        return Collections.singleton(
+                Destination.class.getCanonicalName()
+        );
+    }
+
+    /**
+     * 编译器找到我们关心的注解后，会回调这个方法
+     */
+    @Override
+    public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
+        // 避免多次调用 process
+        if (roundEnvironment.processingOver()) {
+            return false;
+        }
+
+        System.out.println(TAG + " >>> process start ...");
+
+        // 获取所有标记了 @Destination 注解的 类的信息
+        Set<Element> allDestinationElements = (Set<Element>) roundEnvironment.getElementsAnnotatedWith(Destination.class);
+
+        System.out.println(TAG + " >>> all Destination elements count = " + allDestinationElements.size());
+
+        // 当未收集到 @Destination 注解的时候，跳过后续流程
+        if (allDestinationElements.size() < 1) {
+            return false;
+        }
+
+        // 将要自动生成的类的类名
+        String className = "RouterMapping_" + System.currentTimeMillis();
+
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("package com.watayouxiang.gradlerouter.mapping;\n");
+        builder.append("import java.util.HashMap;\n");
+        builder.append("import java.util.Map;\n\n");
+        builder.append("public class ").append(className).append(" {\n");
+        builder.append("\tpublic static Map<String, String> get() {\n");
+        builder.append("\t\tMap<String, String> mapping = new HashMap<>();\n");
+
+
+        final JsonArray destinationJsonArray = new JsonArray();
+
+        // 遍历所有 @Destination 注解信息，挨个获取详细信息
+        for (Element element : allDestinationElements) {
+
+            final TypeElement typeElement = (TypeElement) element;
+
+            // 尝试在当前类上，获取 @Destination 的信息
+            final Destination destination = typeElement.getAnnotation(Destination.class);
+
+            if (destination == null) continue;
+
+            final String url = destination.url();
+            final String description = destination.description();
+            // 获取注解当前类的全类名
+            final String realPath = typeElement.getQualifiedName().toString();
+
+            System.out.println(TAG + " >>> url = " + url);
+            System.out.println(TAG + " >>> description = " + description);
+            System.out.println(TAG + " >>> realPath = " + realPath);
+
+            builder.append("\t\tmapping.put(")
+                    .append("\"" + url + "\"")
+                    .append(", ")
+                    .append("\"" + realPath + "\"")
+                    .append(");\n");
+
+            // 组装json对象
+            JsonObject item = new JsonObject();
+            item.addProperty("url", url);
+            item.addProperty("description", description);
+            item.addProperty("realPath", realPath);
+
+            destinationJsonArray.add(item);
+        }
+
+        builder.append("\t\treturn mapping;\n");
+        builder.append("\t}\n");
+        builder.append("}");
+
+        String mappingFullClassName = "com.watayouxiang.gradlerouter.mapping." + className;
+
+        System.out.println(TAG + " >>> mappingFullClassName = " + mappingFullClassName);
+        System.out.println(TAG + " >>> class content = \n" + builder);
+
+
+        // 写入自动生成的类到本地文件中
+        try {
+            JavaFileObject source = processingEnv.getFiler().createSourceFile(mappingFullClassName);
+            Writer writer = source.openWriter();
+            writer.write(builder.toString());
+            writer.flush();
+            writer.close();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while create file", e);
+        }
+
+        System.out.println(TAG + " >>> process finish ...");
+
+        return false;
+    }
+}
+```
+
+目的是生成这样的文件
+
+```
+package com.watayouxiang.gradlerouter.mapping;
+import java.util.HashMap;
+import java.util.Map;
+
+public class RouterMapping_1636709905463 {
+	public static Map<String, String> get() {
+		Map<String, String> mapping = new HashMap<>();
+		mapping.put("router://page-home", "com.watayouxiang.gradlerouter.MainActivity");
+		return mapping;
+	}
+}
+```
+
+### 3、使用Annotation
 
 app module 的 build.gradle 添加
 
-- ```
-  dependencies {
-      // 依赖自己的注解
-      implementation project(':router-annotations')
-      // 依赖自己的注解处理器
-      annotationProcessor project(':router-processor')
-  }
-  ```
+```
+dependencies {
+    // 依赖自己的注解
+    implementation project(':router-annotations')
+    // 依赖自己的注解处理器
+    annotationProcessor project(':router-processor')
+}
+```
 
 使用注解
 
-- ```
-  // 使用自己定义的注解
-  @Destination(
-          url = "router://page-home",
-          description = "应用主页"
-  )
-  public class MainActivity extends Activity {
-  }
-  ```
+```
+package com.watayouxiang.gradlerouter;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle;
+import com.watayouxiang.router.annotations.Destination;
+
+@Destination(url = "router://page-home", description = "应用主页")
+public class MainActivity extends AppCompatActivity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+    }
+}
+```
 
 测试注解
 
@@ -589,193 +456,167 @@ app module 的 build.gradle 添加
  * $ ./gradlew clean -q
  *
  * // 2、开始debug编译
- * $ ./gradlew :androiddemo:assembleDebug -q
+ * $ ./gradlew :app:assembleDebug -q
  *
  * //3、查看生成文件
  * 生成的 RouterMapping_xxx.java 文件在:
- * module 的 build/generated/ap_generated_sources/out/${packagename} 目录下
+ * app module 的 build/generated/ap_generated_sources/out/${packagename} 目录下
  */
 ```
 
-### 4、发布到本地maven仓库
+### 4、发布工程到本地仓库
 
-rootProject 下的 gradle.properties 添加
+根目录下的 gradle.properties 添加：
 
-- ```
-  POM_URL=../repo
-  GROUP_ID=com.imooc.router
-  VERSION_NAME=1.0.0
-  ```
+```
+POM_URL=../repo
+GROUP_ID=com.watayouxiang.router
+VERSION_NAME=1.0.0
+```
 
-router-annotations 项目下新建 gradle.properties 写入
+router-annotations 项目下新建 gradle.properties 文件并写入：
 
-- ```
-  POM_ARTIFACT_ID=router-annotations
-  ```
+```
+POM_ARTIFACT_ID=router-annotations
+```
 
 router-processor 项目下新建 gradle.properties 写入
 
-- ```
-  POM_ARTIFACT_ID=router-processor
-  ```
+```
+POM_ARTIFACT_ID=router-processor
+```
 
-rootProject 下新建 maven-publish.gradle 写入
+根目录下新建 maven-publish.gradle 文件并写入：
 
-- ```
-  // 使用maven插件中的发布功能
-  apply plugin: 'maven'
-  
-  
-  // 读取工程配置
-  Properties rootProjectProperties = new Properties()
-  rootProjectProperties.load(project.rootProject.file('gradle.properties').newDataInputStream())
-  def POM_URL = rootProjectProperties.getProperty("POM_URL")
-  def GROUP_ID = rootProjectProperties.getProperty("GROUP_ID")
-  def VERSION_NAME = rootProjectProperties.getProperty("VERSION_NAME")
-  
-  Properties childProjectProperties = new Properties()
-  childProjectProperties.load(project.file('gradle.properties').newDataInputStream())
-  def POM_ARTIFACT_ID = childProjectProperties.getProperty("POM_ARTIFACT_ID")
-  
-  println("maven-publish POM_URL = $POM_URL")
-  println("maven-publish GROUP_ID = $GROUP_ID")
-  println("maven-publish VERSION_NAME = $VERSION_NAME")
-  println("maven-publish POM_ARTIFACT_ID = $POM_ARTIFACT_ID")
-  
-  
-  // 发布到本地 maven 仓库的任务
-  uploadArchives {
-      repositories {
-          mavenDeployer {
-  
-              // 填入发布信息
-              repository(url: uri(POM_URL)) {
-                  pom.groupId = GROUP_ID
-                  pom.artifactId = POM_ARTIFACT_ID
-                  pom.version = VERSION_NAME
-              }
-  
-              /**
-               * 修改 router-processor 的 build.gradle 内容
-               *
-               * // 原本内容
-               * dependencies { implementation project(':router-annotations') }*
-               * // 修改后的内容
-               * dependencies { implementation 'com.imooc.router:router-annotations:1.0.0' }*/
-              pom.whenConfigured { pom ->
-                  pom.dependencies.forEach { dep ->
-                      if (dep.getVersion() == "unspecified") {
-                          dep.setGroupId(GROUP_ID)
-                          dep.setVersion(VERSION_NAME)
-                      }
-                  }
-              }
-  
-          }
-      }
-  }
-  ```
+```
+// ------------------------------------------------------------------------
+// 使用maven插件中的发布功能
+// ------------------------------------------------------------------------
+
+apply plugin: 'maven'
+
+// ------------------------------------------------------------------------
+// 读取工程配置
+// ------------------------------------------------------------------------
+
+Properties rootProjectProperties = new Properties()
+rootProjectProperties.load(project.rootProject.file('gradle.properties').newDataInputStream())
+def POM_URL = rootProjectProperties.getProperty("POM_URL")
+def GROUP_ID = rootProjectProperties.getProperty("GROUP_ID")
+def VERSION_NAME = rootProjectProperties.getProperty("VERSION_NAME")
+
+Properties childProjectProperties = new Properties()
+childProjectProperties.load(project.file('gradle.properties').newDataInputStream())
+def POM_ARTIFACT_ID = childProjectProperties.getProperty("POM_ARTIFACT_ID")
+
+println("maven-publish POM_URL = $POM_URL")
+println("maven-publish GROUP_ID = $GROUP_ID")
+println("maven-publish VERSION_NAME = $VERSION_NAME")
+println("maven-publish POM_ARTIFACT_ID = $POM_ARTIFACT_ID")
+
+// ------------------------------------------------------------------------
+// 发布到本地 maven 仓库的任务
+// ------------------------------------------------------------------------
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+
+            // 填入发布信息
+            repository(url: uri(POM_URL)) {
+                pom.groupId = GROUP_ID
+                pom.artifactId = POM_ARTIFACT_ID
+                pom.version = VERSION_NAME
+            }
+
+            // 修改 router-processor 的 build.gradle 内容
+            // 原本内容：dependencies { implementation project(':router-annotations') }
+            // 修改后的内容：dependencies { implementation 'com.watayouxiang.router:router-annotations:1.0.0' }
+            pom.whenConfigured { pom ->
+                pom.dependencies.forEach { dep ->
+                    if (dep.getVersion() == "unspecified") {
+                        dep.setGroupId(GROUP_ID)
+                        dep.setVersion(VERSION_NAME)
+                    }
+                }
+            }
+        }
+    }
+}
+```
 
 router-annotations 项目下 build.gradle 应用 maven-publish.gradle 插件
 
-- ```
-  // 应用发布工程
-  apply from : rootProject.file("maven-publish.gradle")
-  ```
+```
+apply from : rootProject.file("maven-publish.gradle")
+```
 
 router-processor 项目下 build.gradle 应用 maven-publish.gradle 插件
 
-- ```
-  // 应用发布工程
-  apply from : rootProject.file("maven-publish.gradle")
-  ```
+```
+apply from : rootProject.file("maven-publish.gradle")
+```
 
 执行发布命令
 
-- ```
-  /**
-   * 开始打包发布：
-   *
-   * // 清理build文件
-   * $ ./gradlew clean -q
-   *
-   *
-   * // 项目上传到maven本地仓库
-   * $ ./gradlew :router-annotations:uploadArchives
-   * $ ./gradlew :router-processor:uploadArchives
-   *
-   * */
-  ```
+```
+// 清理build文件
+$ ./gradlew clean -q
+
+// 项目上传到maven本地仓库
+$ ./gradlew :router-annotations:uploadArchives
+$ ./gradlew :router-processor:uploadArchives
+```
 
 ### 5、应用maven仓库的aar
 
 rootProject 的 build.gradle 写入仓库地址
 
-- ```
-  buildscript {
-      // 插件所在的仓库
-      repositories {
-          /**
-           * 配置maven仓库地址
-           * 这里可以是相对路径地址，也可以是绝对路径地址
-           */
-          maven {
-              url uri("/Users/TaoWang/Documents/Code/github/Android/repo")
-          }
-  
-          google()
-          jcenter()
-      }
-  
-      // gradle 插件
-      dependencies {
-          classpath 'com.android.tools.build:gradle:4.1.3'
-  
-          /**
-           * 声明依赖的插件
-           * 形式是：groupId : artifactId : version
-           */
-          classpath 'com.imooc.router:router-gradle-plugin:1.0.0'
-      }
-  }
-  
-  allprojects {
-      // 工程依赖所在的仓库
-      repositories {
-          /**
-           * 配置maven仓库地址
-           * 这里可以是相对路径地址，也可以是绝对路径地址
-           */
-          maven {
-              url uri("/Users/TaoWang/Documents/Code/github/Android/repo")
-          }
-  
-          google()
-          jcenter()
-      }
-  }
-  ```
+```
+buildscript {
+    // 插件所在的仓库
+    repositories {
+        // 本地 maven 仓库地址
+        maven {
+            url uri("/Users/TaoWang/Desktop/gradle_demo/gradle_router/repo")
+        }
+    }
+}
+
+allprojects {
+    // 工程依赖所在的仓库
+    repositories {
+        // 本地 maven 仓库地址
+        maven {
+            url uri("/Users/TaoWang/Desktop/gradle_demo/gradle_router/repo")
+        }
+    }
+}
+```
 
 app module 的 build.gradle 中引用 注解和注解处理器
 
-- ```
-  dependencies {
-      implementation 'com.imooc.router:router-annotations:1.0.0'
-      annotationProcessor 'com.imooc.router:router-processor:1.0.0'
-  }
-  ```
+```
+dependencies {
+//    implementation project(':router-annotations')
+//    annotationProcessor project(':router-processor')
 
-验证结果
+    implementation 'com.watayouxiang.router:router-annotations:1.0.0'
+    annotationProcessor 'com.watayouxiang.router:router-processor:1.0.0'
+}
+```
 
-- ```
-  // 清空build文件
-  $ ./gradlew clean -q
-  
-  // 测试打包
-  $ ./gradlew :androiddemo:assembleDebug
-  
-  // 查看 androiddemo module 的 build/generated/ap_generated_sources/debug/out 目录下生成的代码是否正确
-  ```
+验证是否引用成功
+
+```
+// 清空build文件
+$ ./gradlew clean -q
+
+// 测试打包
+$ ./gradlew :app:assembleDebug
+
+// 查看 app module 的 build/generated/ap_generated_sources/debug/out 目录下生成的代码是否正确
+```
 
 ### 6、kapt的使用
 
@@ -783,46 +624,53 @@ app module 的 build.gradle 中引用 注解和注解处理器
 
 根目录的 build.gradle 编写
 
-- ```
-  buildscript {
-      dependencies {
-          // 添加 kotlin 编译插件
-          classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.3.72'
-      }
-  }
-  ```
+```
+buildscript {
+    dependencies {
+        // 添加 kotlin 编译插件
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.3.72'
+    }
+}
+```
 
 app module 的 build.gradle 编写
 
-- ```
-  // kotlin 插件
-  apply plugin: 'kotlin-android'
-  apply plugin: 'kotlin-kapt'
-  
-  // 配置 kapt 参数
-  android {
-      kapt {
-          arguments {
-              arg("root_project_dir", rootProject.projectDir.absolutePath)
-          }
-      }
-  }
-  
-  dependencies {
-      implementation project(':router-annotations')
-      // 搜集 java的注解 和 kotlin的注解
-      kapt project(':router-processor')
-  }
-  ```
+```
+// kotlin 插件
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
 
-获取 kapt 的参数 root_project_dir
+// 配置 kapt 参数
+android {
+    kapt {
+        arguments {
+            arg("root_project_dir", rootProject.projectDir.absolutePath)
+        }
+    }
+}
 
-- ```
-  // 获取 kapt 的参数 root_project_dir
-  String rootDir = processingEnv.getOptions().get("root_project_dir");
-  
-  // 详细代码在 com.imooc.router.processor.DestinationProcesso#process 方法中
-  ```
+dependencies {
+//    implementation project(':router-annotations')
+//    annotationProcessor project(':router-processor')
+
+//    implementation 'com.watayouxiang.router:router-annotations:1.0.0'
+//    annotationProcessor 'com.watayouxiang.router:router-processor:1.0.0'
+
+    implementation project(':router-annotations')
+    kapt project(':router-processor')
+}
+```
+
+com.watayouxiang.router.processor.DestinationProcessor#process 中添加代码：
+
+```
+// 获取 kapt 的参数 root_project_dir
+String rootDir = processingEnv.getOptions().get("root_project_dir");
+System.out.println(TAG + " >>> rootDir = " + rootDir);
+
+// 打印结果：
+// >>> rootDir = /Users/TaoWang/Desktop/gradle_demo/gradle_router
+```
 
 ## 字节码插桩实现路由组件自动注册
 
@@ -851,9 +699,7 @@ public class RouterMapping {
     再点击 ASMMified 选项卡，就能查看RouterMapping的ASM代码
 ```
 
-### 2、编码
-
-#### 1）引用Transform插件
+### 2、引用Transform插件
 
 在 buildSrc/build.gradle 添加如下
 
@@ -871,7 +717,7 @@ dependencies {
 }
 ```
 
-#### 2）收集所有RouterMapping_xxx
+### 3、收集所有RouterMapping_xxx
 
 - 在 com.imooc.router.gradle.RouterMappingCollector
   - 收集所有RouterMapping_xxx
@@ -1030,7 +876,7 @@ class RouterMappingTransform extends Transform {
 
 
 
-#### 3）ASM生成RouterMapping
+### 4、ASM生成RouterMapping
 
 - 在 com.imooc.router.gradle.RouterMappingByteCodeBuilder
   - 用asm编写RouterMapping字节码
@@ -1204,7 +1050,7 @@ class RouterMappingTransform extends Transform {
 }
 ```
 
-#### 4）验证生成结果
+### 5、验证生成结果
 
 ```
 $ ./gradlew clean
@@ -1219,6 +1065,151 @@ $ unzip 48.jar -d 48
 
 查看解压后的 RouterMapping.class 代码，验证正确性
 ```
+
+## 为gradle插件添加文档生成功能
+
+### 思路解析
+
+1、将路径参数 root_project_dir 传递到 kapt 注解处理器中。从而避免需要手动在app module的 build.gradle 中配置如下信息。
+
+```
+kapt {
+	arguments {
+		arg("root_project_dir", rootProject.projectDir.absolutePath)
+	}
+}
+```
+
+2、实现旧的构建产物的自动清理：删除上一次构建生成的 router_mapping 目录
+
+3、在 javac 任务 (compileDebugJavaWithJavac) 后，汇总生成文档
+
+```
+// 可以在 setting.gradle 中打印本次构建执行的所有任务的名称，从而知晓 javac 任务的名称
+gradle.taskGraph.beforeTask { task ->
+ println("[all-task] " + task.name)
+}
+
+// $ ./gradlew :androiddemo:assembleDebug -q
+```
+
+### 编码内容
+
+router-gradle-plugin 项目 com.imooc.router.gradle.RouterPlugin 编码如下：
+
+- ```
+  class RouterPlugin implements Plugin<Project> {
+    // 实现apply方法，注入插件的逻辑
+    @Override
+    void apply(Project project) {
+  
+        // 1、自动帮助用户传递路径参数到注解处理器中
+        //     kapt {
+        //        arguments {
+        //            arg("root_project_dir", rootProject.projectDir.absolutePath)
+        //        }
+        //    }
+        if (project.extensions.findByName("kapt") != null) {
+            project.extensions.findByName("kapt").arguments {
+                arg("root_project_dir", project.rootProject.projectDir.absolutePath)
+            }
+        }
+  
+        // 2、实现旧的构建产物的自动清理
+        project.clean.doFirst {
+            // 删除上一次构建生成的 router_mapping 目录
+            File routerMappingDir = new File(project.rootProject.projectDir, "router_mapping")
+            if (routerMappingDir.exists()) {
+                routerMappingDir.deleteDir()
+            }
+        }
+  
+        println("i am from RouterPlugin, apply from ${project.name}")
+  
+        // 创建 Extension
+        project.getExtensions().create("router", RouterExtension)
+  
+        // 获取 Extension
+        project.afterEvaluate {
+            RouterExtension extension = project["router"]
+            println("用户设置的 wikiDir 路径：${extension.wikiDir}")
+  
+            // 3、在 javac 任务 (compileDebugJavaWithJavac) 后，汇总生成文档
+            project.tasks.findAll { task ->
+                task.name.startsWith('compile') && task.name.endsWith('JavaWithJavac')
+            } each { task ->
+                task.doLast {
+                    File routerMappingDir = new File(project.rootProject.projectDir, "router_mapping")
+                    if (!routerMappingDir.exists()) {
+                        return
+                    }
+                    File[] allChildFiles = routerMappingDir.listFiles()
+                    if (allChildFiles.length < 1) {
+                        return
+                    }
+  
+                    StringBuilder markdownBuilder = new StringBuilder()
+                    markdownBuilder.append("# 页面文档\n\n")
+                    allChildFiles.each { child ->
+                        if (child.name.endsWith(".json")) {
+                            JsonSlurper jsonSlurper = new JsonSlurper()
+                            def content = jsonSlurper.parse(child)
+                            content.each { innerContent ->
+                                def url = innerContent['url']
+                                def description = innerContent['description']
+                                def realPath = innerContent['realPath']
+                                markdownBuilder.append("## $description\n")
+                                markdownBuilder.append("- url: $url\n")
+                                markdownBuilder.append("- realPath: $realPath\n\n")
+                            }
+                        }
+                    }
+  
+                    File wikiFileDir = new File(extension.wikiDir)
+                    if (!wikiFileDir.exists()) {
+                        wikiFileDir.mkdir()
+                    }
+                    File wikiFile = new File(wikiFileDir, "页面文档.md")
+                    if (wikiFile.exists()) {
+                        wikiFile.delete()
+                    }
+                    wikiFile.write(markdownBuilder.toString())
+                }
+            }
+            
+        }
+    }
+  }
+  ```
+
+测试 MD文档 是否生成
+
+- ```
+  // 测试 MD文档 是否生成
+  $ ./gradlew clean -q
+  $ ./gradlew :androiddemo:assembleDebug -q
+  ```
+
+使用注意事项
+
+- ```
+  // --------------------------
+  // 在 app module 的 build.gradle 中，“router插件” 需要在 “kotlin插件” 之后声明使用
+  // 
+  // 因为：需要在 com.imooc.router.gradle.RouterPlugin 中获取 kapt 的 extension
+  // 所以：“router插件” 需要在 “kotlin插件” 之后声明
+  // --------------------------
+  
+  // kotlin 插件
+  apply plugin: 'kotlin-android'
+  apply plugin: 'kotlin-kapt'
+  
+  // 应用自己的插件
+  apply plugin: 'com.imooc.router'
+  router {
+      wikiDir getRootDir().absolutePath
+  }
+  ```
 
 ## 运行时功能的实现
 
