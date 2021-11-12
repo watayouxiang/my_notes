@@ -1,4 +1,4 @@
-# gradle之页面路由项目
+# gradle之页面路由项目笔记
 
 ## gradle插件开发步骤
 
