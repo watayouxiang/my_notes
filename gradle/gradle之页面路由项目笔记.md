@@ -4,9 +4,7 @@
 
 ### 1、创建插件工程
 
-建立 buildSrc 目录
-
-建立 build.gradle
+建立 buildSrc 目录，建立 build.gradle
 
 ```
 // 引用 groovy 插件，编译插件工程中的代码
@@ -168,7 +166,78 @@ router {
 }
 ```
 
+### 5、kapt的使用
+
+> apt只能收集java的注解，如果还要收集kotlin注解的话，需要使用kapt。
+
+根目录的 build.gradle 编写
+
+```
+buildscript {
+    dependencies {
+        // 添加 kotlin 编译插件
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.31'
+    }
+}
+```
+
+app module 的 build.gradle 编写
+
+```
+// kotlin 插件
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+
+// 配置 kapt 参数
+android {
+    kapt {
+        arguments {
+            arg("root_project_dir", rootProject.projectDir.absolutePath)
+        }
+    }
+}
+
+dependencies {
+//    implementation project(':router-annotations')
+//    annotationProcessor project(':router-processor')
+
+//    implementation 'com.watayouxiang.router:router-annotations:1.0.0'
+//    annotationProcessor 'com.watayouxiang.router:router-processor:1.0.0'
+
+    implementation project(':router-annotations')
+    kapt project(':router-processor')
+}
+```
+
+com.watayouxiang.router.processor.DestinationProcessor#process 中添加如下代码，用于获取 kapt 的参数 root_project_dir。
+
+```
+// com.watayouxiang.router.processor.DestinationProcessor#process 中添加如下代码：
+// 获取 kapt 的参数 root_project_dir
+String rootDir = processingEnv.getOptions().get("root_project_dir");
+System.out.println(TAG + " >>> rootDir = " + rootDir);
+
+// 打印结果：
+// >>> rootDir = /Users/TaoWang/Desktop/gradle_demo/gradle_router
+```
+
 ## 第二节：APT采集页面路由信息
+
+> 目的是自动生成如下class文件：
+
+```
+package com.watayouxiang.gradlerouter.mapping;
+import java.util.HashMap;
+import java.util.Map;
+
+public class RouterMapping_1636709905463 {
+	public static Map<String, String> get() {
+		Map<String, String> mapping = new HashMap<>();
+		mapping.put("router://page-home", "com.watayouxiang.gradlerouter.MainActivity");
+		return mapping;
+	}
+}
+```
 
 ### 1、建立Annotation工程
 
@@ -618,87 +687,14 @@ $ ./gradlew :app:assembleDebug
 // 查看 app module 的 build/generated/ap_generated_sources/debug/out 目录下生成的代码是否正确
 ```
 
-### 6、kapt的使用
+## 第三节：ASM实现路由组件自动注册
 
-> apt只能收集java的注解，如果还要收集kotlin注解的话，需要使用kapt。
+### 1、ASM插件使用
 
-根目录的 build.gradle 编写
+通过字节码插桩技术，在.class打包成.dex文件前对其进行修改，修改字节码，通过ASM技术。
 
-```
-buildscript {
-    dependencies {
-        // 添加 kotlin 编译插件
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.3.72'
-    }
-}
-```
-
-app module 的 build.gradle 编写
-
-```
-// kotlin 插件
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-kapt'
-
-// 配置 kapt 参数
-android {
-    kapt {
-        arguments {
-            arg("root_project_dir", rootProject.projectDir.absolutePath)
-        }
-    }
-}
-
-dependencies {
-//    implementation project(':router-annotations')
-//    annotationProcessor project(':router-processor')
-
-//    implementation 'com.watayouxiang.router:router-annotations:1.0.0'
-//    annotationProcessor 'com.watayouxiang.router:router-processor:1.0.0'
-
-    implementation project(':router-annotations')
-    kapt project(':router-processor')
-}
-```
-
-com.watayouxiang.router.processor.DestinationProcessor#process 中添加如下代码，用于获取 kapt 的参数 root_project_dir。
-
-```
-// com.watayouxiang.router.processor.DestinationProcessor#process 中添加如下代码：
-// 获取 kapt 的参数 root_project_dir
-String rootDir = processingEnv.getOptions().get("root_project_dir");
-System.out.println(TAG + " >>> rootDir = " + rootDir);
-
-// 打印结果：
-// >>> rootDir = /Users/TaoWang/Desktop/gradle_demo/gradle_router
-```
-
-## ASM实现路由组件自动注册
-
-### 1、字节码插桩技术说明
-
-```
-// 将多个 RouterMapping_xxx 合并汇总成 RouterMapping
-public class RouterMapping {
-    public static Map<String, String> get() {
-        Map<String, String> map = new HashMap<>();
-
-        map.putAll(RouterMapping_1.get());
-        map.putAll(RouterMapping_2.get());
-
-        //...
-
-        return map;
-    }
-}
-
-// 通过字节码插桩技术，在.class打包成.dex文件前对其进行修改
-// 修改字节码，通过ASM技术
-1）安装 ASM Bytecode Viewer Support Kotlin 插件，帮助写ASM代码
-2）如何查看 com.watayouxiang.androiddemo.sample.RouterMapping 的ASM代码写法：
-    在RouterMapping文件中，右键选择 ASM Bytecode Viewer 就能查看RouterMapping的二进制代码，
-    再点击 ASMMified 选项卡，就能查看RouterMapping的ASM代码
-```
+- 安装 ASM Bytecode Viewer Support Kotlin 插件，帮助写ASM代码
+- 在RouterMapping文件中，右键选择 ASM Bytecode Viewer 就能查看RouterMapping的二进制代码，再点击 ASMMified 选项卡，就能查看RouterMapping的ASM代码
 
 ### 2、引用Transform插件
 
@@ -720,13 +716,33 @@ dependencies {
 
 ### 3、收集所有RouterMapping_xxx
 
-- 在 com.imooc.router.gradle.RouterMappingCollector
-  - 收集所有RouterMapping_xxx
+目的是将多个 RouterMapping_xxx 合并汇总成 RouterMapping。为了生成如下代码：
 
 ```
+public class RouterMapping {
+    public static Map<String, String> get() {
+        Map<String, String> map = new HashMap<>();
+        map.putAll(RouterMapping_1636803627725.get());
+        map.putAll(RouterMapping_6434692469264.get());
+        //...
+        return map;
+    }
+}
+```
+
+创建 com.watayouxiang.router.gradle.RouterMappingCollector。
+
+- 用于收集所有RouterMapping_xxx。
+
+```
+package com.watayouxiang.router.gradle
+
+import java.util.jar.JarEntry
+import java.util.jar.JarFile
+
 class RouterMappingCollector {
 
-    private static final String PACKAGE_NAME = 'com/watayouxiang/androiddemo/mapping'
+    private static final String PACKAGE_NAME = 'com/watayouxiang/gradlerouter/mapping'
     private static final String CLASS_NAME_PREFIX = 'RouterMapping_'
     private static final String CLASS_FILE_SUFFIX = '.class'
 
@@ -734,7 +750,6 @@ class RouterMappingCollector {
 
     /**
      * 获取收集好的映射表类名
-     * @return
      */
     Set<String> getMappingClassName() {
         return mappingClassNames
@@ -742,7 +757,6 @@ class RouterMappingCollector {
 
     /**
      * 收集class文件或者class文件目录中的映射表
-     * @param classFile
      */
     void collect(File classFile) {
         if (classFile == null || !classFile.exists()) return
@@ -762,7 +776,6 @@ class RouterMappingCollector {
 
     /**
      * 收集JAR包中的目标类
-     * @param jarFile
      */
     void collectFromJarFile(File jarFile) {
         Enumeration enumeration = new JarFile(jarFile).entries()
@@ -783,17 +796,23 @@ class RouterMappingCollector {
 }
 ```
 
-
-
-- 在 com.imooc.router.gradle.RouterMappingTransform
-  - 实现类的拷贝逻辑
-  - 收集所有RouterMapping_xxx
+创建 com.watayouxiang.router.gradle.RouterMappingTransform。
+- 实现类的拷贝逻辑
+- 收集所有RouterMapping_xxx
 
 ```
+package com.watayouxiang.router.gradle
+
+import com.android.build.api.transform.*
+import com.android.build.gradle.internal.pipeline.TransformManager
+import com.android.utils.FileUtils
+
+import java.util.jar.JarOutputStream
+import java.util.zip.ZipEntry
+
 class RouterMappingTransform extends Transform {
     /**
      * 当前 Transform 的名称
-     * @return
      */
     @Override
     String getName() {
@@ -803,7 +822,6 @@ class RouterMappingTransform extends Transform {
     /**
      * 返回告知编译器，当前 Transform 需要消费的输入类型
      * 在这里是 CLASS 类型
-     * @return
      */
     @Override
     Set<QualifiedContent.ContentType> getInputTypes() {
@@ -812,7 +830,6 @@ class RouterMappingTransform extends Transform {
 
     /**
      * 告诉编译器，当前 Transform 需要收集的范围
-     * @return
      */
     @Override
     Set<? super QualifiedContent.Scope> getScopes() {
@@ -822,7 +839,6 @@ class RouterMappingTransform extends Transform {
     /**
      * 告诉编译器，当前 Transform 是否支持增量
      * 通常返回 false
-     * @return
      */
     @Override
     boolean isIncremental() {
@@ -831,8 +847,6 @@ class RouterMappingTransform extends Transform {
 
     /**
      * 所有 class 收集好以后，会被打包传入此方法
-     * @param transformInvocation
-     * @throws TransformException，InterruptedException，IOException
      */
     @Override
     void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
@@ -871,21 +885,69 @@ class RouterMappingTransform extends Transform {
         // RouterMappingTransform all mapping class name = [RouterMapping_1617693731656, RouterMapping_1617693732873]
         println("${getName()} all mapping class name = " + collector.mappingClassName)
 
+        //-------------------------------- 使用 RouterMappingByteCodeBuilder
+        File mappingJarFile = transformInvocation.outputProvider.getContentLocation(
+                "router_mapping",
+                getOutputTypes(),
+                getScopes(),
+                Format.JAR)
+
+        println("${getName()} mappingJarFile = $mappingJarFile")
+
+        if (mappingJarFile.getParentFile().exists()) {
+            mappingJarFile.getParentFile().mkdirs()
+        }
+        if (mappingJarFile.exists()) {
+            mappingJarFile.delete()
+        }
+
+        // 将生成的字节码写入本地文件
+        FileOutputStream fos = new FileOutputStream(mappingJarFile)
+        JarOutputStream jarOutputStream = new JarOutputStream(fos)
+        ZipEntry zipEntry = new ZipEntry(RouterMappingByteCodeBuilder.CLASS_NAME + ".class")
+        jarOutputStream.putNextEntry(zipEntry)
+        jarOutputStream.write(RouterMappingByteCodeBuilder.get(collector.mappingClassName))
+
+        jarOutputStream.closeEntry()
+        jarOutputStream.close()
+        fos.close()
     }
 }
 ```
 
-
-
 ### 4、ASM生成RouterMapping
 
-- 在 com.imooc.router.gradle.RouterMappingByteCodeBuilder
-  - 用asm编写RouterMapping字节码
+创建 com.watayouxiang.router.gradle.RouterMappingByteCodeBuilder。
+- 用asm编写RouterMapping字节码
 
 ```
+package com.watayouxiang.router.gradle
+
+import jdk.internal.org.objectweb.asm.ClassWriter
+import jdk.internal.org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
+
+/*
+// 将多个 RouterMapping_xxx 合并汇总成 RouterMapping
+public class RouterMapping {
+    public static Map<String, String> get() {
+        Map<String, String> map = new HashMap<>();
+        map.putAll(RouterMapping_1636803627725.get());
+        map.putAll(RouterMapping_6434692469264.get());
+        //...
+        return map;
+    }
+}
+
+// 通过字节码插桩技术，在.class打包成.dex文件前对其进行修改。
+// 修改字节码，通过ASM技术
+1）安装 ASM Bytecode Viewer Support Kotlin 插件，帮助写ASM代码
+2）在RouterMapping文件中，右键选择 ASM Bytecode Viewer 就能查看RouterMapping的二进制代码，
+    再点击 ASMMified 选项卡，就能查看RouterMapping的ASM代码
+ */
 class RouterMappingByteCodeBuilder implements Opcodes {
 
-    public static final String CLASS_NAME = "com/watayouxiang/androiddemo/mapping/RouterMapping"
+    public static final String CLASS_NAME = "com/watayouxiang/app/mapping/RouterMapping"
 
     static byte[] get(Set<String> allMappingNames) {
         // 1、创建一个类
@@ -965,111 +1027,29 @@ class RouterMappingByteCodeBuilder implements Opcodes {
 
         return classWriter.toByteArray()
     }
-
-}
-```
-
-
-
-- 在com.imooc.router.gradle.RouterMappingTransform
-  - 将生成的RouterMapping字节码插入到本地文件
-
-```
-class RouterMappingTransform extends Transform {
-
-		//......
-		
-    /**
-     * 所有 class 收集好以后，会被打包传入此方法
-     * @param transformInvocation
-     * @throws TransformException，InterruptedException，IOException
-     */
-    @Override
-    void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
-        //super.transform(transformInvocation)
-        // 1、遍历所有的Input
-        // 2、对Input进行二次处理
-        // 3、将Input拷贝到目标目录
-
-        RouterMappingCollector collector = new RouterMappingCollector()
-
-        // 遍历所有的输入
-        // 如果 app module 有：build/intermediates/transforms/RouterMappingTransform，说明拷贝成功
-        transformInvocation.inputs.each {
-            // 把文件夹类型的输入，拷贝到目标目录
-            it.directoryInputs.each { dirInput ->
-                def destDir = transformInvocation.outputProvider.getContentLocation(
-                        dirInput.name,
-                        dirInput.contentTypes,
-                        dirInput.scopes,
-                        Format.DIRECTORY)
-                collector.collect(dirInput.file)
-                FileUtils.copyDirectory(dirInput.file, destDir)
-            }
-            // 把 JAR 类型的输入，拷贝到目标目录
-            it.jarInputs.each { jarInput ->
-                def dest = transformInvocation.outputProvider.getContentLocation(
-                        jarInput.name,
-                        jarInput.contentTypes,
-                        jarInput.scopes,
-                        Format.JAR)
-                collector.collectFromJarFile(jarInput.file)
-                FileUtils.copyFile(jarInput.file, dest)
-            }
-        }
-
-        // RouterMappingTransform all mapping class name = [RouterMapping_1617693731656, RouterMapping_1617693732873]
-        println("${getName()} all mapping class name = " + collector.mappingClassName)
-
-        //-------------------------------- 使用RouterMappingByteCodeBuilder
-        File mappingJarFile = transformInvocation.outputProvider.getContentLocation(
-                "router_mapping",
-                getOutputTypes(),
-                getScopes(),
-                Format.JAR)
-
-        println("${getName()} mappingJarFile = $mappingJarFile")
-
-        if (mappingJarFile.getParentFile().exists()) {
-            mappingJarFile.getParentFile().mkdirs()
-        }
-        if (mappingJarFile.exists()) {
-            mappingJarFile.delete()
-        }
-
-        // 将生成的字节码写入本地文件
-        FileOutputStream fos = new FileOutputStream(mappingJarFile)
-        JarOutputStream jarOutputStream = new JarOutputStream(fos)
-        ZipEntry zipEntry = new ZipEntry(RouterMappingByteCodeBuilder.CLASS_NAME + ".class")
-        jarOutputStream.putNextEntry(zipEntry)
-        jarOutputStream.write(RouterMappingByteCodeBuilder.get(collector.mappingClassName))
-
-        jarOutputStream.closeEntry()
-        jarOutputStream.close()
-        fos.close()
-    }
 }
 ```
 
 ### 5、验证生成结果
 
 ```
+验证：
 $ ./gradlew clean
-$ ./gradlew :androiddemo:assembleDebug -q
+$ ./gradlew :app:assembleDebug -q
 
-日志输出：RouterMappingTransform mappingJarFile = /Users/TaoWang/Documents/Code/github/Android/androiddemo/build/intermediates/transforms/RouterMappingTransform/debug/48.jar
-查看build目录：androiddemo/build/intermediates/transforms/RouterMappingTransform/debug/48.jar
+日志输出：RouterMappingTransform mappingJarFile = app/build/intermediates/transforms/RouterMappingTransform/debug/48.jar
+查看build目录：app/build/intermediates/transforms/RouterMappingTransform/debug/48.jar
 
-$ cd /Users/TaoWang/Documents/Code/github/Android/androiddemo/build/intermediates/transforms/RouterMappingTransform/debug
+$ cd /Users/TaoWang/Desktop/gradle_demo/gradle_router/app/build/intermediates/transforms/RouterMappingTransform/debug
 // 将 48.jar 解压到 48
 $ unzip 48.jar -d 48
 
 查看解压后的 RouterMapping.class 代码，验证正确性
 ```
 
-## 为gradle插件添加文档生成功能
+## 第四节：为gradle插件添加文档生成功能
 
-### 思路解析
+### 1、思路解析
 
 1、将路径参数 root_project_dir 传递到 kapt 注解处理器中。从而避免需要手动在app module的 build.gradle 中配置如下信息。
 
@@ -1091,19 +1071,35 @@ gradle.taskGraph.beforeTask { task ->
  println("[all-task] " + task.name)
 }
 
-// $ ./gradlew :androiddemo:assembleDebug -q
+// $ ./gradlew :app:assembleDebug -q
 ```
 
-### 编码内容
+### 2、编码内容
 
-router-gradle-plugin 项目 com.imooc.router.gradle.RouterPlugin 编码如下：
+ 项目 com.watayouxiang.router.gradle.RouterPlugin 编码修改如下：
 
-- ```
-  class RouterPlugin implements Plugin<Project> {
+```
+package com.watayouxiang.router.gradle
+
+import com.android.build.api.transform.Transform
+import com.android.build.gradle.AppExtension
+import com.android.build.gradle.AppPlugin
+import groovy.json.JsonSlurper
+import org.gradle.api.Plugin
+import org.gradle.api.Project
+
+class RouterPlugin implements Plugin<Project> {
     // 实现apply方法，注入插件的逻辑
     @Override
     void apply(Project project) {
-  
+
+        // 注册Transform
+        if (project.plugins.hasPlugin(AppPlugin)) {
+            AppExtension appExtension = project.extensions.getByType(AppExtension)
+            Transform transform = new RouterMappingTransform()
+            appExtension.registerTransform(transform)
+        }
+
         // 1、自动帮助用户传递路径参数到注解处理器中
         //     kapt {
         //        arguments {
@@ -1115,7 +1111,7 @@ router-gradle-plugin 项目 com.imooc.router.gradle.RouterPlugin 编码如下：
                 arg("root_project_dir", project.rootProject.projectDir.absolutePath)
             }
         }
-  
+
         // 2、实现旧的构建产物的自动清理
         project.clean.doFirst {
             // 删除上一次构建生成的 router_mapping 目录
@@ -1124,17 +1120,22 @@ router-gradle-plugin 项目 com.imooc.router.gradle.RouterPlugin 编码如下：
                 routerMappingDir.deleteDir()
             }
         }
-  
+
+        // 容错处理，只处理App module，lib module则不处理
+        if (!project.plugins.hasPlugin(AppPlugin)) {
+            return
+        }
+
         println("i am from RouterPlugin, apply from ${project.name}")
-  
+
         // 创建 Extension
         project.getExtensions().create("router", RouterExtension)
-  
+
         // 获取 Extension
         project.afterEvaluate {
             RouterExtension extension = project["router"]
             println("用户设置的 wikiDir 路径：${extension.wikiDir}")
-  
+
             // 3、在 javac 任务 (compileDebugJavaWithJavac) 后，汇总生成文档
             project.tasks.findAll { task ->
                 task.name.startsWith('compile') && task.name.endsWith('JavaWithJavac')
@@ -1148,7 +1149,7 @@ router-gradle-plugin 项目 com.imooc.router.gradle.RouterPlugin 编码如下：
                     if (allChildFiles.length < 1) {
                         return
                     }
-  
+
                     StringBuilder markdownBuilder = new StringBuilder()
                     markdownBuilder.append("# 页面文档\n\n")
                     allChildFiles.each { child ->
@@ -1165,52 +1166,58 @@ router-gradle-plugin 项目 com.imooc.router.gradle.RouterPlugin 编码如下：
                             }
                         }
                     }
-  
+
                     File wikiFileDir = new File(extension.wikiDir)
                     if (!wikiFileDir.exists()) {
                         wikiFileDir.mkdir()
                     }
-                    File wikiFile = new File(wikiFileDir, "页面文档.md")
+                    File wikiFile = new File(wikiFileDir, "RouterMapping.md")
                     if (wikiFile.exists()) {
                         wikiFile.delete()
                     }
                     wikiFile.write(markdownBuilder.toString())
                 }
             }
-            
         }
     }
-  }
-  ```
+}
+```
 
 测试 MD文档 是否生成
 
-- ```
-  // 测试 MD文档 是否生成
-  $ ./gradlew clean -q
-  $ ./gradlew :androiddemo:assembleDebug -q
-  ```
+```
+$ ./gradlew clean -q
+$ ./gradlew :app:assembleDebug -q
+```
 
-使用注意事项
+### 3、使用注意事项
 
-- ```
-  // --------------------------
-  // 在 app module 的 build.gradle 中，“router插件” 需要在 “kotlin插件” 之后声明使用
-  // 
-  // 因为：需要在 com.imooc.router.gradle.RouterPlugin 中获取 kapt 的 extension
-  // 所以：“router插件” 需要在 “kotlin插件” 之后声明
-  // --------------------------
-  
-  // kotlin 插件
-  apply plugin: 'kotlin-android'
-  apply plugin: 'kotlin-kapt'
-  
-  // 应用自己的插件
-  apply plugin: 'com.imooc.router'
-  router {
-      wikiDir getRootDir().absolutePath
-  }
-  ```
+```
+// --------------------------
+// 在 app module 的 build.gradle 中，“router插件” 需要在 “kotlin插件” 之后声明使用
+// 
+// 因为：需要在 com.imooc.router.gradle.RouterPlugin 中获取 kapt 的 extension
+// 所以：“router插件” 需要在 “kotlin插件” 之后声明
+// --------------------------
+
+// kotlin 插件
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'com.watayouxiang.router'
+
+router {
+    wikiDir getRootDir().absolutePath
+}
+
+// --------------------------
+// 在 project module 的 build.gradle 中
+//
+// 注释掉 router-gradle-plugin，以便 app module 引用的是 buildSrc，而不是 router-gradle-plugin
+// --------------------------
+dependencies {
+    // classpath 'com.watayouxiang.router:router-gradle-plugin:1.0.0'
+}
+```
 
 ## 运行时功能的实现
 
