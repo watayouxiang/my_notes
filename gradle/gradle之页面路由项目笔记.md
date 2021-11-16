@@ -728,7 +728,7 @@ dependencies {
 }
 ```
 
-### 3、收集所有RouterMapping_xxx
+### 3、收集所有RouterMapping_xxx.class
 
 创建 com.watayouxiang.router.gradle.RouterMappingCollector。
 
@@ -850,6 +850,9 @@ class RouterMappingTransform extends Transform {
      */
     @Override
     void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
+
+        // --------------- 收集 RouterMapping_xxx.class ---------------
+
         //super.transform(transformInvocation)
         // 1、遍历所有的Input
         // 2、对Input进行二次处理
@@ -885,7 +888,8 @@ class RouterMappingTransform extends Transform {
         // RouterMappingTransform all mapping class name = [RouterMapping_1617693731656, RouterMapping_1617693732873]
         println("${getName()} all mapping class name = " + collector.mappingClassName)
 
-        //-------------------------------- 使用 RouterMappingByteCodeBuilder
+        // --------------- 生成 RouterMapping.class ---------------
+
         File mappingJarFile = transformInvocation.outputProvider.getContentLocation(
                 "router_mapping",
                 getOutputTypes(),
@@ -915,7 +919,7 @@ class RouterMappingTransform extends Transform {
 }
 ```
 
-### 4、ASM生成RouterMapping
+### 4、ASM生成RouterMapping.class
 
 创建 com.watayouxiang.router.gradle.RouterMappingByteCodeBuilder。
 - 用asm编写RouterMapping字节码
@@ -1074,7 +1078,7 @@ gradle.taskGraph.beforeTask { task ->
 // $ ./gradlew :app:assembleDebug -q
 ```
 
-### 2、根据RouterMapping_xxx生成mapping_xxx
+### 2、根据RouterMapping_xxx.class生成mapping_xxx.json
 
 项目 com.watayouxiang.router.processor.DestinationProcessor 编码修改如下：
 
@@ -1141,6 +1145,8 @@ public class DestinationProcessor extends AbstractProcessor {
         if (allDestinationElements.size() < 1) {
             return false;
         }
+
+        // ------------------ 生成 RouterMapping_xxx.class ------------------
 
         // 将要自动生成的类的类名
         String className = "RouterMapping_" + System.currentTimeMillis();
@@ -1212,6 +1218,8 @@ public class DestinationProcessor extends AbstractProcessor {
             throw new RuntimeException("Error while create file", e);
         }
 
+        // ------------------ 生成 mapping_xxx.json ------------------
+
         // 获取 kapt 的参数 root_project_dir
         String rootDir = processingEnv.getOptions().get("root_project_dir");
 
@@ -1245,7 +1253,7 @@ public class DestinationProcessor extends AbstractProcessor {
 }
 ```
 
-### 2、汇总mapping_xxx生成RouterMapping.md
+### 3、汇总mapping_xxx.json生成RouterMapping.md
 
  项目 com.watayouxiang.router.gradle.RouterPlugin 编码修改如下：
 
@@ -1270,6 +1278,8 @@ class RouterPlugin implements Plugin<Project> {
             Transform transform = new RouterMappingTransform()
             appExtension.registerTransform(transform)
         }
+
+        // -------------------- 生成 RouterMapping.md --------------------
 
         // 1、自动帮助用户传递路径参数到注解处理器中
         //     kapt {
@@ -1362,7 +1372,7 @@ $ ./gradlew clean -q
 $ ./gradlew :app:assembleDebug -q
 ```
 
-### 3、使用注意事项
+### 4、使用注意事项
 
 ```
 // --------------------------
@@ -1391,29 +1401,77 @@ dependencies {
 }
 ```
 
-## 运行时功能的实现
+## 第五节：运行时功能的实现
 
-### 创建router-runtime工程
+### 1、创建router-runtime工程
 
-- com.imooc.gradle.router.runtime.Router
+> 创建 android library 类型的 router-runtime。
+>
+> 解析路由参数，实现路由跳转，并传参。
 
-  - 实现初始化逻辑
-
-  - 目标页面的查找
-
-  - 参数解析与打开Activity
+1）创建 build.gradle 内容如下：
 
 ```
+plugins {
+    id 'com.android.library'
+    id 'kotlin-android'
+}
+
+android {
+    compileSdk 31
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 31
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+apply from : rootProject.file("maven-publish.gradle")
+```
+
+2）router-runtime module 根目录下，创建 gradle.properties，内容如下：
+
+> 用于将 router-runtime module 上传到本地maven库
+
+```
+POM_ARTIFACT_ID=router-runtime
+```
+
+3）创建 com.watayouxiang.gradle.router.runtime.Router 内容如下：
+
+```
+package com.watayouxiang.gradle.router.runtime
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.util.Log
+
 object Router {
 
     private const val TAG = "RouterTAG"
 
     // 编译期间生成的总映射表
-    private const val GENERATED_MAPPING = "com.watayouxiang.androiddemo.mapping.RouterMapping"
+    private const val GENERATED_MAPPING = "com.watayouxiang.gradlerouter.mapping.RouterMapping"
 
     // 存储所有映射表信息
     private val mapping: HashMap<String, String> = HashMap()
 
+    /**
+     * 初始化 Router
+     */
     fun init() {
         try {
             val clazz = Class.forName(GENERATED_MAPPING)
@@ -1432,6 +1490,9 @@ object Router {
         }
     }
 
+    /**
+     * 路由跳转
+     */
     fun go(context: Context, url: String) {
         if (context == null || url == null) {
             Log.i(TAG, "go: param error")
@@ -1439,7 +1500,7 @@ object Router {
         }
 
         // 1、匹配URL，找到目标页面
-        // router://imooc/profile?name=imooc&message=hello
+        // router://watayouxiang/profile?name=imooc&message=hello
 
         val uri = Uri.parse(url)
         val scheme = uri.scheme
@@ -1448,12 +1509,12 @@ object Router {
 
         var targetActivityClass = ""
         mapping.onEach {
-            val ruri = Uri.parse(it.key)
-            val rscheme = ruri.scheme
-            val rhost = ruri.host
-            val rpath = ruri.path
+            val rUri = Uri.parse(it.key)
+            val rScheme = rUri.scheme
+            val rHost = rUri.host
+            val rPath = rUri.path
 
-            if (rscheme == scheme && rhost == host && rpath == path) {
+            if (rScheme == scheme && rHost == host && rPath == path) {
                 targetActivityClass = it.value
             }
         }
@@ -1464,7 +1525,6 @@ object Router {
         }
 
         // 2、解析URL里的参数，封装成一个 Bundle
-
         val bundle = Bundle()
         val query = uri.query
         query?.let {
@@ -1478,7 +1538,6 @@ object Router {
         }
 
         // 3、打开对应的Activity，并传入参数
-
         try {
             val activity = Class.forName(targetActivityClass)
             val intent = Intent(context, activity)
@@ -1487,42 +1546,56 @@ object Router {
         } catch (e: Throwable) {
             Log.e(TAG, "go: error while start activity: $targetActivityClass, e = $e")
         }
-
     }
 
 }
 ```
 
-### 功能测试
+### 2、应用router-runtime工程
 
-- 注册路由框架
+1）app module 应用 router-runtime 库
 
 ```
-class App : Application() {
+// app module 的 build.gradle 添加如下：
+dependencies {
+    implementation project(':router-runtime')
+}
+```
+
+2）创建 com.watayouxiang.gradlerouter.MyApp.kt，用于初始化 Router
+
+```
+package com.watayouxiang.gradlerouter
+
+import android.app.Application
+import com.watayouxiang.gradle.router.runtime.Router
+
+// app module 的 AndroidManifest.xml 注册 MyApp
+class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        if (ProcessUtils.isMainProcess()){
-            initInternal()
-        }
-    }
-
-    private fun initInternal() {
-        CrashUtils.init()
+        // 初始化 路由器
         Router.init()
     }
 }
 ```
 
-- 创建测试页面 com.watayouxiang.androiddemo.demo.ProfileActivity
+2）创建 com.watayouxiang.gradlerouter.ProfileActivity.kt，用于测试 Router
 
 ```
-@Destination(
-    url = "router://imooc/profile",
-    description = "个人信息"
-)
-class ProfileActivity : Activity() {
+package com.watayouxiang.gradlerouter
 
+import android.graphics.Color
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.TextView
+import com.watayouxiang.router.annotations.Destination
+
+@Destination(url = "router://watayouxiang/profile", description = "个人信息")
+class ProfileActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -1541,39 +1614,41 @@ class ProfileActivity : Activity() {
         val name = intent.getStringExtra("name")
         val message = intent.getStringExtra("message")
 
-        textView.text = "Profile -> name=$name, message = $message"
-
+        textView.text = "ProfileActivity: name=$name, message = $message"
     }
 }
 ```
 
-- 通过路由框架打开ProfileActivity
+创建 com.watayouxiang.gradlerouter.MainActivity.java
 
 ```
-// com.watayouxiang.androiddemo.MainActivity
-public class MainActivity extends ListActivity {
+package com.watayouxiang.gradlerouter;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+import android.view.View;
+
+import com.watayouxiang.gradle.router.runtime.Router;
+import com.watayouxiang.router.annotations.Destination;
+
+@Destination(url = "router://page-home", description = "应用主页")
+public class MainActivity extends AppCompatActivity {
+
     @Override
-    protected ListData getListData() {
-        return new ListData()
-                .addSection("测试路由框架")
-                .addClick("测试打开路由页面", view -> Router.INSTANCE.go(view.getContext(), "router://imooc/profile?name=imooc&message=hello"))
-                ;
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        findViewById(R.id.tv_text).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Router.INSTANCE.go(MainActivity.this, "router://watayouxiang/profile?name=imooc&message=hello");
+            }
+        });
     }
 }
 ```
 
-### 发布aar
 
-- router-runtime 的 gradle.properties 添加配置
 
-```
-POM_ARTIFACT_ID=router-runtime
-```
-
-- router-runtime 的 build.gradle 添加发布插件，执行发布命令
-
-```
-// 引用发布脚本
-// $ ./gradlew :router-runtime:uploadArchives
-apply from : rootProject.file("maven-publish.gradle")
-```
