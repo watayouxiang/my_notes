@@ -212,7 +212,7 @@ $ ./gradlew clean -q
 
 ## 5、gradle构建
 
-### gradle构建的脚本基础
+### 1）gradle构建的脚本基础
 
 - setting.gradle
   - 声明当前project包含了哪些module
@@ -224,7 +224,7 @@ $ ./gradlew clean -q
 - grade.properties
   - 配置开关型参数的文件
 
-### gradle构建的生命周期
+### 2）gradle构建的生命周期
 
 **1）初始化阶段：**收集本次参加构建的所有子工程，创建一个项目的层次结构，为每一个项目创建一个project实例
 
@@ -286,7 +286,7 @@ $ ./gradlew :app:testTask -q
 // 可以得出结论：task是在 配置阶段之后，构建结束之前 执行的
 ```
 
-### gradle几个主要角色
+### 3）gradle几个主要角色
 
 **1）初始化阶段  rootProject：**在初始化阶段之前，就能拿到 rootProject 对象了
 
@@ -362,7 +362,7 @@ $ ./gradlew :app:test2 -q
 // 结论：test2 依赖于 testTask
 ```
 
-### 监听构建生命周期回调
+### 4）监听构建生命周期回调
 
 在 setting.gradle 配置如下代码监听构建生命周期回调
 
@@ -411,7 +411,7 @@ gradle.buildFinished {
 }
 ```
 
-### 打印构建阶段task依赖关系及输出输入
+### 5）打印构建阶段task依赖关系及输出输入
 
 - 在根 project 的 build.gradle 配置如下
 
@@ -447,7 +447,7 @@ this.project.afterEvaluate {
 }
 ```
 
-### Project工程树
+### 6）Project工程树
 
 - RootProject (AsProj)
   - SubProject (biz_home)
@@ -463,7 +463,7 @@ this.project.afterEvaluate {
 
 ## 6、应用构建实用技能
 
-### 版本号的统一管理
+### - 版本号的统一管理
 
 project 的 build.gradle 
 
@@ -496,7 +496,7 @@ dependencies {
 }
 ```
 
-### 维护敏感信息
+### - 维护敏感信息
 
 - local.properties 添加如下
 
@@ -534,7 +534,7 @@ android {
 }
 ```
 
-### 限制依赖库的使用
+### - 限制依赖库的使用
 
 - 在 app module 的 build.gradle 添加如下
 
@@ -551,7 +551,7 @@ configurations.all {
 }
 ```
 
-### BuildConfig那些事
+### - buildTypes那些事
 
 - app module 的 build.gradle
 
@@ -576,7 +576,62 @@ android {
 }
 ```
 
-### 分析构建性能
+### - BuildVariants那些事
+
+app module 的 build.gradle 中添加
+
+```
+// 产品维度
+flavorDimensions "channel"
+// 产品风味
+productFlavors {
+    // 开发专用的构建变体
+    dev {
+        minSdkVersion 21
+    }
+    huawei {
+        manifestPlaceholders = [WT_CHANNEL_VALUE: "huawei"]
+    }
+    xiaomi {
+        manifestPlaceholders = [WT_CHANNEL_VALUE: "baidu"]
+    }
+}
+
+applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+        if (variant.buildType.name.equals('release')) {
+            // ${variant.productFlavors[0].name} 渠道名称
+            // ${defaultConfig.versionName} 版本号
+            def fileName = "wtApp_${variant.productFlavors[0].name}_${defaultConfig.versionName}.apk"
+            output.outputFileName = fileName
+        }
+    }
+}
+```
+
+app module 的 AndroidManifest.xml 添加：
+
+```
+<application>
+    <meta-data
+        android:name="WT_CHANNEL"
+        android:value="${WT_CHANNEL_VALUE}" />
+</application>
+```
+
+app module 的 代码中获取渠道信息：
+
+```
+// 测试：获取渠道信息
+try {
+    ApplicationInfo appInfo = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA);
+    String wtChannel = appInfo.metaData.getString("WT_CHANNEL");
+    tv_text.setText("wtChannel = " + wtChannel);
+} catch (Exception ignored) {
+}
+```
+
+### - 分析构建性能
 
 ```groovy
 // 分析构建任务的耗时
@@ -584,10 +639,10 @@ android {
 // --rerun-tasks 不使用任何缓存
 // --profile 生成一份性能报告
 // 性能报告所在位置：build/reports/profile/...xxx.html
-$ ./gradlew androiddemo:assembleHuaweiDebug --offline --rerun-tasks --profile
+$ ./gradlew app:assembleHuaweiDebug --offline --rerun-tasks --profile
 ```
 
-### 分析app页面的布局树
+### - 分析app页面的布局树
 
 ```groovy
 // 进入到uiautomatorviewer目录
@@ -599,7 +654,7 @@ $ ./uiautomatorviewer
 // 点击 Device ScreenShot 按钮
 ```
 
-### 代码反编译
+### - 代码反编译
 
 - dex2jar 工具
 - Java Decompiler
