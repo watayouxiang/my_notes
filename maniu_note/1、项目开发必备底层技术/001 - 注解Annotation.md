@@ -1,0 +1,120 @@
+[TOC]
+
+# 注解Annotation
+
+## 复习注解
+
+注解，单独是没有意义的。如下是具体应用场景：
+
+- 注解+APT：用于生成一些java文件，如：butterknife、dagger2、hilt、databinding
+- 注解+代码埋点：AspactJ、ARouter
+- 注解+反射+动态代理：XUtils、Lifecycle
+
+```java
+@Target({ElementType.FIELD, ElementType.METHOD})// 作用在什么地方
+@Retention(RetentionPolicy.RUNTIME)							// 作用范围
+public @interface BindView {
+    String value();
+    int id();
+}
+
+public enum ElementType {
+    TYPE,               /* 类、接口（包括注释类型）或枚举声明 */
+    FIELD,              /* 字段声明（包括枚举常量）*/
+    METHOD,             /* 方法声明 */
+    PARAMETER,          /* 参数声明 */
+    CONSTRUCTOR,        /* 构造方法声明 */
+    LOCAL_VARIABLE,     /* 局部变量声明 */
+    ANNOTATION_TYPE,    /* 注释类型声明 */
+    PACKAGE             /* 包声明 */
+}
+
+public enum RetentionPolicy {
+    SOURCE,            /* Annotation信息仅存在于编译器处理期间，编译器处理完之后就没有该Annotation信息了 */
+    CLASS,             /* 编译器将Annotation存储于类对应的.class文件中。默认行为 */
+    RUNTIME            /* 编译器将Annotation存储于class文件中，并且可由JVM读入 */
+}
+```
+
+## 通过反射获取自定义注解
+
+```java
+// @Target 表示注解可以用在哪些地方
+@Target(value = {ElementType.METHOD, ElementType.TYPE})
+// @Retention 表示注解在什么地方有效(作用域）Runtime > Class > Source
+@Retention(value = RetentionPolicy.RUNTIME)
+// @Documented 表示是否将注解生成在JavaDoc中
+@Documented
+// @Inherited 表示子类可以继承父类的注解
+@Inherited
+public @interface MyAnnotation {
+    String value2();
+    int id() default 0;
+}
+
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@interface DemoAnnotation {
+    String value();
+}
+
+// -----------------------------------------------
+
+@MyAnnotation(value2 = "User")
+@DemoAnnotation("db_student")
+public class User {
+    private int id;
+
+    @MyAnnotation(value2 = "getId")
+    public int getId() {
+        return id;
+    }
+}
+
+// -----------------------------------------------
+
+public static void main(String[] args) {
+    Class<?> aClass = null;
+    try {
+        aClass= Class.forName("com.example.test.User");
+    } catch (ClassNotFoundException e) {
+        e.printStackTrace();
+    }
+    System.out.println(aClass);
+
+    // 通过反射获得注解
+    Annotation[] annotations =  aClass.getAnnotations();
+    for (Annotation annotation : annotations) {
+        // @com.example.test.MyAnnotation(id=0, value2=User)
+        // @com.example.test.DemoAnnotation(value=db_student)
+        System.out.println(annotation);
+    }
+
+    DemoAnnotation annotation =  aClass.getAnnotation(DemoAnnotation.class);
+    String value = annotation.value();
+    System.out.println(value);// db_student
+}
+```
+
+## @IntDef代替枚举
+
+```java
+class Test {
+    private static final int SUNDAY = 0;
+    private static final int MONDAY = 1;
+
+    // 注解代替枚举，可以节省内存空间
+    @IntDef({SUNDAY, MONDAY})
+    @Target(ElementType.PARAMETER)
+    @Retention(RetentionPolicy.SOURCE)
+    @interface WeekDay{
+    }
+
+    public static void setCurrDay(@WeekDay int currDay) {
+    }
+
+    public static void main(String[] args) {
+        setCurrDay(SUNDAY);
+    }
+}
+```

@@ -1,74 +1,8 @@
----
-typora-root-url: ./notes_res
----
+[TOC]
 
-# 注解反射及动态代理在Retrofit中的应用
+# 动态代理Proxy
 
-## 1、反射知识点复习
-
-<img src="/反射知识点.png" style="zoom:90%;" />
-
-## 2、注解与反射demo
-
-```java
-// @Target 表示注解可以用在哪些地方
-@Target(value = {ElementType.METHOD,ElementType.TYPE})
-// @Retention 表示注解在什么地方有效(作用域）Runtime > Class > Source
-@Retention(value = RetentionPolicy.RUNTIME)
-// @Documented 表示是否将注解生成在JavaDoc中
-@Documented
-// @Inherited 表示子类可以继承父类的注解
-@Inherited
-public @interface MyAnnotation {
-    String value2();
-    int id() default 0;
-}
-
-@Target({ElementType.TYPE, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-@interface DemoAnnotation {
-    String value();
-}
-
-// -----------------------------------------------
-
-@MyAnnotation(value2 = "User")
-@DemoAnnotation("db_student")
-public class User {
-    private int id;
-
-    @MyAnnotation(value2 = "getId")
-    public int getId() {
-        return id;
-    }
-}
-
-// -----------------------------------------------
-
-public static void main(String[] args) {
-    Class<?> aClass = null;
-    try {
-        aClass= Class.forName("com.example.test.User");
-    } catch (ClassNotFoundException e) {
-        e.printStackTrace();
-    }
-    System.out.println(aClass);
-
-    // 通过反射获得注解
-    Annotation[] annotations =  aClass.getAnnotations();
-    for (Annotation annotation : annotations) {
-        // @com.example.test.MyAnnotation(id=0, value2=User)
-        // @com.example.test.DemoAnnotation(value=db_student)
-        System.out.println(annotation);
-    }
-
-    DemoAnnotation annotation =  aClass.getAnnotation(DemoAnnotation.class);
-    String value = annotation.value();
-    System.out.println(value);// db_student
-}
-```
-
-## 3、动态代理demo
+## 动态代理Demo
 
 ```java
 public interface ProxyInterface {
@@ -113,11 +47,9 @@ boolean ok = proxy.buyPhone(this);// false
 boolean ok2 = proxy.buyBook(this, "三国演义");// true
 ```
 
-## 4、注解反射及动态代理实现butterknife
+## 动态代理实现ButterKnife
 
-> 注解+反射+动态代理 实现 butterknife
-
-### 1）使用示例
+### 1）使用ButterKnife示例
 
 ```java
 @InjectLayout(R.layout.activity_main)
@@ -145,47 +77,48 @@ public class MainActivity extends BaseActivity {
 }
 ```
 
-### 2）申明注解
+### 2）申明ButterKnife注解
 
  @OnClick、@OnLongClick、@ViewInject、@ContentView
 
 ```java
-// --------------------------- InjectEvent
-@Target(ElementType.ANNOTATION_TYPE)
+// --------------------------- @InjectEvent
+
+@Target(ElementType.ANNOTATION_TYPE)// 注解的注解
 @Retention(RetentionPolicy.RUNTIME)
 public @interface InjectEvent {
-    //事件三要素
-    //1、setOnClickListener
-    //2、View.onClickListener
-    //3、onClick
+    // 事件三要素
+    // 1、setOnClickListener
+    // 2、View.onClickListener
+    // 3、onClick
     String listenerSetter();
     Class<?> listenerType();
     String callbackMethod();
 }
 
-// --------------------------- OnClick
+// --------------------------- @OnClick
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @InjectEvent(listenerSetter = "setOnClickListener",
-        listenerType = View.OnClickListener.class,
-        callbackMethod = "onClick")
+        		listenerType = View.OnClickListener.class,
+        		callbackMethod = "onClick")
 public @interface OnClick {
     int[] value();
 }
 
-// --------------------------- OnLongClick
+// --------------------------- @OnLongClick
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @InjectEvent(listenerSetter = "setOnLongClickListener", 
-        listenerType = View.OnLongClickListener.class, 
-        callbackMethod = "onLongClick")
+       		 listenerType = View.OnLongClickListener.class, 
+       		 callbackMethod = "onLongClick")
 public @interface OnLongClick {
     int[] value() default -1;
 }
 
-// --------------------------- InjectLayout
+// --------------------------- @InjectLayout
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -193,7 +126,7 @@ public @interface InjectLayout {
     int value();
 }
 
-// --------------------------- InjectView
+// --------------------------- @InjectView
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
@@ -202,9 +135,7 @@ public @interface InjectView {
 }
 ```
 
-### 3）实现注解功能
-
-> 注解+反射+动态代理 实现 butterknife
+### 3）反射实现ButterKnife功能
 
 ```java
 public class InjectManager {
@@ -253,9 +184,7 @@ public class InjectManager {
                         View view = (View) findViewById.invoke(obj, id);
                         if (view == null) continue;
 
-                        // 拿到 View 的 setOnClickListener(View.onClickListener l) 方法
-                        Method setterMethod = view.getClass().getMethod(listenerSetter, listenerType);
-                        // 动态代理
+                        // 动态代理 View.onClickListener.class
                         Object proxy = Proxy.newProxyInstance(
                                 // ClassLoader loader
                                 listenerType.getClassLoader(),
@@ -270,6 +199,8 @@ public class InjectManager {
                                     }
                                 }
                         );
+                        // 拿到 View 的 setOnClickListener(...) 方法
+                        Method setterMethod = view.getClass().getMethod(listenerSetter, listenerType);
                         // 调用 View 的 setOnClickListener(View.onClickListener l) 方法
                         setterMethod.invoke(view, proxy);
                     }
@@ -319,16 +250,19 @@ public class InjectManager {
 }
 ```
 
-## 5、retrofit源码分析
+## 动态代理在Retrofit中的使用
 
 > 因为太久没用retrofit了，看懂个大概即可。
 
-### 1）retrofit使用示例
+### 1）Retrofit使用示例
 
 ```java
 Retrofit retrofit = new Retrofit.Builder().baseUrl("https://hb.yxg12.cn/").build();
+// 1、内部动态代理实现
 PersonInterface personInterface = retrofit.create(PersonInterface.class);
+// 2、解析注解，实现url拼接
 Call<ResponseBody> call = personInterface.getPersonInfo();
+// 3、丢给okhttp去获取数据，然后切换主线程返回数据
 call.enqueue(new Callback<ResponseBody>() {
     @Override
     public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
