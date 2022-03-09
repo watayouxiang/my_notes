@@ -1,0 +1,77 @@
+[TOC]
+
+# JVM之ART与调优
+
+## ART虚拟机
+
+### Dalvik、ART与Hotspot的区别
+
+![image-20220309114923934](008_JVM之ART与调优.assets/image-20220309114923934.png)
+
+![image-20220309115015212](008_JVM之ART与调优.assets/image-20220309115015212.png)
+
+![image-20220309115205183](008_JVM之ART与调优.assets/image-20220309115205183.png)
+
+![image-20220309143935390](008_JVM之ART与调优.assets/image-20220309143935390.png)
+
+![image-20220309143947425](008_JVM之ART与调优.assets/image-20220309143947425.png)
+
+![image-20220309144352524](008_JVM之ART与调优.assets/image-20220309144352524.png)
+
+### Dalvik与ART
+
+![image-20220309145324688](008_JVM之ART与调优.assets/image-20220309145324688.png)
+
+![image-20220309145907374](008_JVM之ART与调优.assets/image-20220309145907374.png)
+
+![image-20220309145938613](008_JVM之ART与调优.assets/image-20220309145938613.png)
+
+### Android内存管理模型
+
+![image-20220309150107126](008_JVM之ART与调优.assets/image-20220309150107126.png)
+
+![image-20220309150353361](008_JVM之ART与调优.assets/image-20220309150353361.png)
+
+### ART堆的详细划分
+
+![image-20220309150527748](008_JVM之ART与调优.assets/image-20220309150527748.png)
+
+### ART的GC策略
+
+![image-20220309151607960](008_JVM之ART与调优.assets/image-20220309151607960.png)
+
+![image-20220309151702220](008_JVM之ART与调优.assets/image-20220309151702220.png)
+
+### 强、软、弱、虚引用
+
+![image-20220309151751829](008_JVM之ART与调优.assets/image-20220309151751829.png)
+
+### GC打Log分析
+
+![image-20220309152136034](008_JVM之ART与调优.assets/image-20220309152136034.png)
+
+![image-20220309152145973](008_JVM之ART与调优.assets/image-20220309152145973.png)
+
+![image-20220309152154684](008_JVM之ART与调优.assets/image-20220309152154684.png)
+
+## MAT与性能调优
+
+### 内存分析工具
+
+![image-20220309152356285](008_JVM之ART与调优.assets/image-20220309152356285.png)
+
+### Memory Profiler
+
+![image-20220309152423495](008_JVM之ART与调优.assets/image-20220309152423495.png)
+
+### MAT
+
+![image-20220309152609332](008_JVM之ART与调优.assets/image-20220309152609332.png)
+
+### 内存抖动和内存泄漏
+
+![image-20220309152634483](008_JVM之ART与调优.assets/image-20220309152634483.png)
+
+![image-20220309152508696](008_JVM之ART与调优.assets/image-20220309152508696.png)
+
+明显的内存泄漏
