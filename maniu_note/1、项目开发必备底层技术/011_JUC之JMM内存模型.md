@@ -1,14 +1,14 @@
-# JMM内存模型与线程并发
+# JMM内存模型
 
 ## 多核CPU缓存架构
 
-<img src="011_JUC之JMM内存模型与线程并发.assets/image-20220315085029976.png" alt="image-20220315085029976" style="zoom:50%;" />
+<img src="011_JUC之JMM内存模型.assets/image-20220315085029976.png" alt="image-20220315085029976" style="zoom:50%;" />
 
 为什么要引入高速缓存区？因为住内存的速度满足不了CPU的运行速度，所以引入高速缓存区。
 
-<img src="011_JUC之JMM内存模型与线程并发.assets/image-20220315085220528.png" alt="image-20220315085220528" style="zoom:50%;" />
+<img src="011_JUC之JMM内存模型.assets/image-20220315085220528.png" alt="image-20220315085220528" style="zoom:50%;" />
 
-<img src="011_JUC之JMM内存模型与线程并发.assets/image-20220315085323526.png" alt="image-20220315085323526" style="zoom:50%;" />
+<img src="011_JUC之JMM内存模型.assets/image-20220315085323526.png" alt="image-20220315085323526" style="zoom:50%;" />
 
 1. 单核CPU一次处理一个线程
 2. CPU采用抢占或者是时间片轮转机制
@@ -16,7 +16,7 @@
 
 ## JAVA多线程内存模型解析
 
-<img src="011_JUC之JMM内存模型与线程并发.assets/image-20220315085708527.png" alt="image-20220315085708527" style="zoom:50%;" />
+<img src="011_JUC之JMM内存模型.assets/image-20220315085708527.png" alt="image-20220315085708527" style="zoom:50%;" />
 
 ## 高并发体系下面临的三大问题
 
@@ -43,7 +43,7 @@
 
 3）如何保证有序性：内存屏障
 
-![image-20220315091028003](011_JUC之JMM内存模型与线程并发.assets/image-20220315091028003.png)
+![image-20220315091028003](011_JUC之JMM内存模型.assets/image-20220315091028003.png)
 
 4）总结
 
