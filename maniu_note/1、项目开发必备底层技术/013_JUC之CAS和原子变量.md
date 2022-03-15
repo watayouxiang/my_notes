@@ -34,44 +34,23 @@
 
 本质上是一组工具，位置在atomic包下。
 
-实际上祖师爷已经帮我们把CAS的相关实现全部搞定，并且封装。
-
-处理并发安全问题上：
-
-1. 单个原子处理
-2. 块处理
-
 本质上分类两类：
 
 1. 保证基本数据类型的原子性（AtomicInteger...）
 2. 保证引用类型的原子性（AtomicReference）
 
-### 原子引用与ABA问题
+### ABA问题
 
-ABA问题：
+ABA问题：在多线程对于原子变量操作时，会发生将数据变更回去的现象。
 
-​		在多线程对于原子变量操作时，会发生将数据变更回去的现象，CAS在判断时会造成概念上的认知错误，但是实际上对业务结果是不变的。
+- 假如 A 变 B，又变回 A。要认为没有发生变更，那么就用 AtomicMarkableReference。
+- 假如 A 变 B，又变回 A。要认为已经发生变更，那么就用 AtomicStampedReference。
 
-​		但是实际业务运用过程中可能会需要知道整个运行过程值是否改变
+### 引用类型的原子变量
 
-​		通过 AtomicStampedReference  追溯版本号
+AtomicReference 本质上是对于引用类型的地址做判断。
 
-​		通过 AtomicMarkableReference 得到是否更改结果
-
-### 不同场景下的原子变量操作方案
-
-AtomicReference本质上是对于引用类型的地址
-
-但是我们常规使用中，更多的业务是要判定内部数据是否一致
-
-原子数组：
-	保证数组内元素的线程安全
-
-字段：
-	字段更新器   AtomicReferenceFieldUpdater
-
-累加业务：
-	原子累加器
+假如要对内部数据是否一致进行判定，那么就要用字段更新器   AtomicReferenceFieldUpdater。
 
 ### LongAdder原理分析
 
