@@ -2,7 +2,7 @@
 
 # Binder源码分析
 
-## 手写跨进城通信
+## 手写Binder IPC
 
 > - 采用Linux的共享内存方式实现
 > - 使用了mmap函数
@@ -66,7 +66,7 @@ Java_com_maniu_bindermaniu_ManiuBinder_read(JNIEnv *env, jobject thiz) {
 }
 ```
 
-## Binder跨进城通信特点
+## Binder进城通信
 
 ### linux已有的IPC进程通信
 
@@ -77,13 +77,13 @@ Java_com_maniu_bindermaniu_ManiuBinder_read(JNIEnv *env, jobject thiz) {
 
 ### 传统内存调用
 
-<img src="003_Binder之Binder源码分析.assets/image-20220322211844261.png" alt="image-20220322211844261" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220322211844261.png" alt="image-20220322211844261" style="zoom:50%;" />
 
 
 
 ### Binder调用
 
-<img src="003_Binder之Binder源码分析.assets/image-20220322211920124.png" alt="image-20220322211920124" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220322211920124.png" alt="image-20220322211920124" style="zoom:50%;" />
 
 - Binder 分 S端 和 C端，S端获取数据不需要拷贝，因为 S端 存在 1M-8K 虚拟地址和内核空间的虚拟地址存在映射关系。
 - copy_from_user函数调用了2次
@@ -92,18 +92,11 @@ Java_com_maniu_bindermaniu_ManiuBinder_read(JNIEnv *env, jobject thiz) {
 
 ### Binder传输数据
 
-<img src="003_Binder之Binder源码分析.assets/image-20220322213454443.png" alt="image-20220322213454443" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220322213454443.png" alt="image-20220322213454443" style="zoom:50%;" />
 
+## 安卓进程相关
 
-
-## 手写AIDL并阅读源码
-
-- proxy：客户端/发送方
-- stub：服务端/接收方
-
-## 安卓系统进程相关
-
-### 系统类科普
+### 安卓进程介绍
 
 - 系统进程
 
@@ -124,32 +117,24 @@ Java_com_maniu_bindermaniu_ManiuBinder_read(JNIEnv *env, jobject thiz) {
 
 ### Binder打开流程
 
-<img src="003_Binder之Binder源码分析.assets/Binder打开流程.png" alt="Binder打开流程.png" style="zoom:100%;" />
+<img src="003_Binder之binder源码分析.assets/Binder打开流程.png" alt="Binder打开流程.png" style="zoom:100%;" />
 
 ### Activity启动的流程
 
-<img src="003_Binder之Binder源码分析.assets/image-20220322213624619.png" alt="image-20220322213624619" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220322213624619.png" alt="image-20220322213624619" style="zoom:50%;" />
 
-<img src="003_Binder之Binder源码分析.assets/image-20220322213740965.png" alt="image-20220322213740965" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220322213740965.png" alt="image-20220322213740965" style="zoom:50%;" />
 
 ### App启动过程
 
-<img src="003_Binder之Binder源码分析.assets/image-20220322213705158.png" alt="image-20220322213705158" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220322213705158.png" alt="image-20220322213705158" style="zoom:50%;" />
 
-<img src="003_Binder之Binder源码分析.assets/image-20220323172643443.png" alt="image-20220323172643443" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220323172643443.png" alt="image-20220323172643443" style="zoom:50%;" />
 
 ### ActivityThread启动Activity(App进程)
 
-<img src="003_Binder之Binder源码分析.assets/image-20220322214303916.png" alt="image-20220322214303916" style="zoom:50%;" />
+<img src="003_Binder之binder源码分析.assets/image-20220322214303916.png" alt="image-20220322214303916" style="zoom:50%;" />
 
 ### Android启动流程
 
-<img src="003_Binder之Binder源码分析.assets/image-20220323164358866.png" alt="image-20220323164358866" style="zoom:50%;" />
-
-## 一线大厂面试诀窍
-
-- 简历包装:  简历一定要吸引，把最好的两个项目经验放在最前面
-- 备战简历:  简历里面的技术写自己最熟悉和擅长的，每个技术准备对应的连环炮
-- 深挖底层:  底层技术一时半会学不懂，找到高频点，如虚拟机原理，区别，准备5个左右
-- 吃闹架构:  架构一定要好好看，比如Glide，Okhttp，MVVM，MVP架构实现一定要掌握
-- 掌握源码:  简一定要了解FrameWork层源码，如AMS，PMS，Handler，属性动画
+<img src="003_Binder之binder源码分析.assets/image-20220323164358866.png" alt="image-20220323164358866" style="zoom:50%;" />
