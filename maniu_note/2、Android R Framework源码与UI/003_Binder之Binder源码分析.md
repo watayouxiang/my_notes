@@ -1,9 +1,9 @@
 # Binder源码分析
 
-## JNI实现跨进城通信
+## 手写跨进城通信
 
-> - Linux的共享内存方式实现
-> - mmap函数使用
+> - 采用Linux的共享内存方式实现
+> - 使用了mmap函数
 
 ManiuBinder.java
 
@@ -101,12 +101,18 @@ Java_com_maniu_bindermaniu_ManiuBinder_read(JNIEnv *env, jobject thiz) {
 
 ## Binder相关
 
-### Binder相关的系统类
+### 系统类科普
 
-系统中的所有经常进程都是由Zygote进程fork出来的：
+系统进程：
 
-- SystemServer进程是系统进程：很多系统服务，例如ActivityManagerService、PackageManagerService、WindowManagerService…都是存在该进程被创建后启动
-- ActivityManagerServices（AMS）：是一个服务端对象，负责所有的Activity的生命周期，AMS通过Binder与Activity通信，而AMS与Zygote之间是通过Socket通信
+- “init进程“ 创建了 “service_manager进程” 和 ”zygote进程“
+- ”zygote进程“ fork出 “SystemServer进程”
+- SystemServer进程启动如下服务：
+  - SystemServer进程是系统进程：它由很多系统服务，例如ActivityManagerService、PackageManagerService、WindowManagerService等。但是这些服务的管理，实际上是由service_manager进程负责的，因此SystemServer进程与service_manager进程之间就需要用到Binder进行进程间通信。
+  - ActivityManagerServices（AMS）：是一个服务端对象，负责所有的Activity的生命周期，AMS通过Binder与Activity通信，而AMS与Zygote之间是通过Socket通信
+
+App进程：
+
 - ActivityThread：UI线程/主线程，它的main()方法是APP的真正入口
 - ApplicationThread：一个实现了IBinder接口的ActivityThread内部类，用于ActivityThread和AMS的所在进程间通信
 - Instrumentation：可以理解为ActivityThread的一个工具类，在ActivityThread中初始化，一个进程只存在一个Instrumentation对象，在每个Activity初始化时，会通过Activity的Attach方法，将该引用传递给Activity。Activity所有生命周期的方法都由该类来执行。
@@ -128,6 +134,10 @@ Java_com_maniu_bindermaniu_ManiuBinder_read(JNIEnv *env, jobject thiz) {
 ### ActivityThread启动Activity(App进程)
 
 <img src="003_Binder之Binder源码分析.assets/image-20220322214303916.png" alt="image-20220322214303916" style="zoom:50%;" />
+
+### Android启动流程
+
+<img src="003_Binder之Binder源码分析.assets/image-20220323164358866.png" alt="image-20220323164358866" style="zoom:50%;" />
 
 ## 一线大厂面试诀窍
 
