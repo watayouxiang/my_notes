@@ -1,3 +1,5 @@
+[TOC]
+
 # Binder源码分析
 
 ## 手写跨进城通信
@@ -99,23 +101,26 @@ Java_com_maniu_bindermaniu_ManiuBinder_read(JNIEnv *env, jobject thiz) {
 - proxy：客户端/发送方
 - stub：服务端/接收方
 
-## Binder相关
+## 安卓系统进程相关
 
 ### 系统类科普
 
-系统进程：
+- 系统进程
 
-- “init进程“ 创建了 “service_manager进程” 和 ”zygote进程“
-- ”zygote进程“ fork出 “SystemServer进程”
-- SystemServer进程启动如下服务：
-  - SystemServer进程是系统进程：它由很多系统服务，例如ActivityManagerService、PackageManagerService、WindowManagerService等。但是这些服务的管理，实际上是由service_manager进程负责的，因此SystemServer进程与service_manager进程之间就需要用到Binder进行进程间通信。
-  - ActivityManagerServices（AMS）：是一个服务端对象，负责所有的Activity的生命周期，AMS通过Binder与Activity通信，而AMS与Zygote之间是通过Socket通信
+  - “init进程“ 创建了 “service_manager进程” 和 ”zygote进程“
 
-App进程：
+  - ”zygote进程“ fork出 “system_server进程”
 
-- ActivityThread：UI线程/主线程，它的main()方法是APP的真正入口
-- ApplicationThread：一个实现了IBinder接口的ActivityThread内部类，用于ActivityThread和AMS的所在进程间通信
-- Instrumentation：可以理解为ActivityThread的一个工具类，在ActivityThread中初始化，一个进程只存在一个Instrumentation对象，在每个Activity初始化时，会通过Activity的Attach方法，将该引用传递给Activity。Activity所有生命周期的方法都由该类来执行。
+  - system_server进程是系统进程：它启动了很多系统服务，例如ActivityManagerService、PackageManagerService、WindowManagerService等。但是这些系统服务的管理，实际上是由service_manager进程负责的，因此system_server进程与service_manager进程之间就需要用到Binder进行进程间通信。
+    - ActivityManagerServices（AMS）：是一个服务端对象，负责所有的Activity的生命周期，AMS通过Binder与Activity通信，而AMS与Zygote之间是通过Socket通信
+
+- app进程：app进程的由zygote进程fork创建，但是并不是通过Binder方式，而是Socket方式，因为Binder方式效率太高，会影响系统稳定。
+
+  - ActivityThread：UI线程/主线程，它的main()方法是APP的真正入口
+
+  - ApplicationThread：一个实现了IBinder接口的ActivityThread内部类，用于ActivityThread和AMS的所在进程间通信
+
+  - Instrumentation：可以理解为ActivityThread的一个工具类，在ActivityThread中初始化，一个进程只存在一个Instrumentation对象，在每个Activity初始化时，会通过Activity的Attach方法，将该引用传递给Activity。Activity所有生命周期的方法都由该类来执行。
 
 ### Binder打开流程
 
@@ -130,6 +135,8 @@ App进程：
 ### App启动过程
 
 <img src="003_Binder之Binder源码分析.assets/image-20220322213705158.png" alt="image-20220322213705158" style="zoom:50%;" />
+
+<img src="003_Binder之Binder源码分析.assets/image-20220323172643443.png" alt="image-20220323172643443" style="zoom:50%;" />
 
 ### ActivityThread启动Activity(App进程)
 
