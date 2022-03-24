@@ -108,9 +108,10 @@ linux系统在高优先级模式中运行系统**内核代码**以及与**硬件
 
 >  Binder源码有四层：driver、framework、jni、native
 >
->  [Binder4层源码链接](002_Binder之linux内存基础.assets/Binder4层源码)
 
 ![image-20220322151824804](002_Binder之linux内存基础.assets/Binder的四层结构.png)
+
+### [Binder4层源码链接](002_Binder之linux内存基础.assets/Binder4层源码)
 
 ### mmap函数和binder驱动
 
