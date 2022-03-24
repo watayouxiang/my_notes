@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
 
 ### 编写ipclib库
 
-<img src="004_Binder之手写servicemanager.assets/image-20220324170546373.png" alt="image-20220324170546373" style="zoom:50%;" />
+<img src="004_Binder之手写servicemanager.assets/image-20220324172635128.png" alt="image-20220324172635128" style="zoom:50%;" />
 
 ```
 targetSdkVersion 28
@@ -693,6 +693,19 @@ public class WtServiceManager extends Service {
         return parameters;
     }
 
+}
+```
+
+#### aidl
+
+```java
+// WtBinderInterface.aidl
+package com.watayouxiang.demo.ipclib;
+
+// Declare any non-default types here with import statements
+
+interface WtBinderInterface {
+    String request(String msg);
 }
 ```
 
