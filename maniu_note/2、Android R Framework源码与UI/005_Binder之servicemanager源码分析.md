@@ -35,3 +35,12 @@
 ### 源码分析Stub
 
 ServiceManagerNative.java 的内部类 ServiceManagerProxy 就是Stub
+
+### Binder驱动的职责
+
+- 维护进程队列
+- 查找进程信息
+
+### ServiceManager职责
+
+Binder驱动相当于ServiceManager的一个工具，ServiceManager的作用是维护进程间通信（注册服务、发现服务、调用服务）。
