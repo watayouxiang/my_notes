@@ -97,7 +97,7 @@ implementation 'com.google.code.gson:gson:2.5'
 </manifest>
 ```
 
-#### bean
+#### RequestBean
 
 ```java
 package com.watayouxiang.demo.ipclib.bean;
@@ -164,6 +164,8 @@ public class RequestBean {
 }
 ```
 
+#### RequestParameter
+
 ```java
 package com.watayouxiang.demo.ipclib.bean;
 
@@ -208,7 +210,7 @@ public class RequestParameter {
 }
 ```
 
-#### cache
+#### CacheCenter
 
 ```java
 package com.watayouxiang.demo.ipclib.cache;
@@ -356,7 +358,7 @@ public class CacheCenter {
 }
 ```
 
-#### core
+#### BpBinder
 
 ```java
 package com.watayouxiang.demo.ipclib.core;
@@ -398,6 +400,8 @@ public class BpBinder implements InvocationHandler {
     }
 }
 ```
+
+#### WtBinderIPC
 
 ```java
 package com.watayouxiang.demo.ipclib.core;
@@ -561,7 +565,7 @@ public class WtBinderIPC {
 }
 ```
 
-#### 根目录
+#### BBinder
 
 ```java
 package com.watayouxiang.demo.ipclib;
@@ -592,6 +596,8 @@ public class BBinder {
 }
 ```
 
+#### ClassId
+
 ```java
 package com.watayouxiang.demo.ipclib;
 
@@ -606,6 +612,8 @@ public @interface ClassId {
     String value();
 }
 ```
+
+#### WtServiceManager
 
 ```java
 package com.watayouxiang.demo.ipclib;
@@ -696,7 +704,7 @@ public class WtServiceManager extends Service {
 }
 ```
 
-#### aidl
+#### WtBinderInterface
 
 ```java
 // WtBinderInterface.aidl
@@ -746,7 +754,7 @@ implementation project(path: ':ipclib')
 </manifest>
 ```
 
-#### ipc
+#### UserInfo
 
 ```java
 package com.watayouxiang.demo.binder.ipc;
@@ -788,6 +796,8 @@ public class UserInfo {
 }
 ```
 
+#### UserSingleton
+
 ```java
 package com.watayouxiang.demo.binder.ipc;
 
@@ -799,6 +809,8 @@ public interface UserSingleton {
     UserInfo getUserInfo();
 }
 ```
+
+#### UserSingletonImpl
 
 ```java
 package com.watayouxiang.demo.binder.ipc;
@@ -835,7 +847,7 @@ public class UserSingletonImpl implements UserSingleton {
 }
 ```
 
-#### 根目录
+#### MainActivity
 
 ```java
 package com.watayouxiang.demo.binder;
@@ -904,7 +916,7 @@ implementation project(path: ':ipclib')
 </manifest>
 ```
 
-#### ipc
+#### UserInfo
 
 ```java
 package com.watayouxiang.demo.binder.ipc;
@@ -946,6 +958,8 @@ public class UserInfo {
 }
 ```
 
+#### UserSingleton
+
 ```java
 package com.watayouxiang.demo.binder.ipc;
 
@@ -958,7 +972,7 @@ public interface UserSingleton {
 }
 ```
 
-#### binder2
+#### MainActivity
 
 ```java
 package com.watayouxiang.demo.binder2;
