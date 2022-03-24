@@ -1,4 +1,4 @@
-# 手写ServiceManager
+# 手写IPC进程通信
 
 > 在Binder源码中，实现跨进程通信（也就是实现IPC通信）不是难点。
 >
@@ -10,16 +10,16 @@
 > - 服务发现
 > - 服务调用
 
-## ServiceManager架构图
+## Binder IPC 架构图
 
-<img src="004_Binder之手写servicemanager.assets/image-20220322212333960.png" alt="image-20220322212333960" style="zoom:50%;" />
+<img src="004_Binder之手写IPC进程通信.assets/image-20220322212333960.png" alt="image-20220322212333960" style="zoom:50%;" />
 
 - 发消息：BpBinder / Proxy
 - 收消息：BBinder / Stub
 
-## 手写ServiceManager
+## 仿写Binder IPC进程通信
 
-> 实现三个内容：服务注册、服务发现、服务调用
+> 仿Binder IPC，实现三个内容：服务注册、服务发现、服务调用
 
 ### 使用方式演示
 
@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
 
 ### 编写ipclib库
 
-<img src="004_Binder之手写servicemanager.assets/image-20220324172635128.png" alt="image-20220324172635128" style="zoom:50%;" />
+<img src="004_Binder之手写IPC进程通信.assets/image-20220324172635128.png" alt="image-20220324172635128" style="zoom:50%;" />
 
 ```
 targetSdkVersion 28
@@ -719,7 +719,7 @@ interface WtBinderInterface {
 
 ### 编写app
 
-<img src="004_Binder之手写servicemanager.assets/image-20220324171401758.png" alt="image-20220324171401758" style="zoom:50%;" />
+<img src="004_Binder之手写IPC进程通信.assets/image-20220324171401758.png" alt="image-20220324171401758" style="zoom:50%;" />
 
 ```
 targetSdkVersion 28
@@ -881,7 +881,7 @@ public class MainActivity extends AppCompatActivity {
 
 ### 编写app2
 
-<img src="004_Binder之手写servicemanager.assets/image-20220324171846225.png" alt="image-20220324171846225" style="zoom:50%;" />
+<img src="004_Binder之手写IPC进程通信.assets/image-20220324171846225.png" alt="image-20220324171846225" style="zoom:50%;" />
 
 ```
 targetSdkVersion 28
