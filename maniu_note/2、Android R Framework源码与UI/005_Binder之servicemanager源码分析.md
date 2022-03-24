@@ -10,4 +10,14 @@
 
 <img src="005_Binder之servicemanager源码分析.assets/image-20220324200536043.png" alt="image-20220324200536043" style="zoom:50%;" />
 
-SystemServer 启动 ActivityManagerService 服务
+## servicemanager源码分析
+
+> ServiceManager 用于管理 Binder IPC（服务注册、服务发现、服务调用）
+
+- 只要搞清楚 Stub的内部类Proxy的mRemote 是什么，就能了解Binder内部调用过程。
+- BpBinder负责发送消息
+- BBinder负责接收消息
+
+如下是binder源码分析的时序图：
+
+<img src="005_Binder之servicemanager源码分析.assets/image-20220324202623858.png" alt="image-20220324202623858" style="zoom:100%;" />
