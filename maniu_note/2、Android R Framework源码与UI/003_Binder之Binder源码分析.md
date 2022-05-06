@@ -1,5 +1,3 @@
-[TOC]
-
 # Binder源码分析
 
 ## 手写Binder IPC

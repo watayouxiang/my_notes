@@ -1,6 +1,4 @@
-## 安卓进程相关
-
-### 安卓进程介绍
+## 安卓进程介绍
 
 - 系统进程
 
@@ -15,30 +13,6 @@
   - ActivityThread：UI线程/主线程，它的main()方法是APP的真正入口
   - ApplicationThread：一个实现了IBinder接口的ActivityThread内部类，用于ActivityThread和AMS的所在进程间通信
   - Instrumentation：可以理解为ActivityThread的一个工具类，在ActivityThread中初始化，一个进程只存在一个Instrumentation对象，在每个Activity初始化时，会通过Activity的Attach方法，将该引用传递给Activity。Activity所有生命周期的方法都由该类来执行。
-
-### Binder打开流程
-
-<img src="006_Zygote进程详解.assets/Binder打开流程.png" alt="Binder打开流程.png" style="zoom:100%;" />
-
-### Activity启动的流程
-
-<img src="006_Zygote进程详解.assets/image-20220322213624619.png" alt="image-20220322213624619" style="zoom:50%;" />
-
-<img src="006_Zygote进程详解.assets/image-20220322213740965.png" alt="image-20220322213740965" style="zoom:50%;" />
-
-### App启动过程
-
-<img src="006_Zygote进程详解.assets/image-20220322213705158.png" alt="image-20220322213705158" style="zoom:50%;" />
-
-<img src="006_Zygote进程详解.assets/image-20220323172643443.png" alt="image-20220323172643443" style="zoom:50%;" />
-
-### ActivityThread启动Activity(App进程)
-
-<img src="006_Zygote进程详解.assets/image-20220322214303916.png" alt="image-20220322214303916" style="zoom:50%;" />
-
-### Android启动流程
-
-<img src="006_Zygote进程详解.assets/image-20220323164358866.png" alt="image-20220323164358866" style="zoom:50%;" />
 
 ## init进程内部流程
 
@@ -88,7 +62,7 @@
     - system_server是java进程，Zygote进程是native进程
     - AMS、PMS 并不是一个单独的进程，而是在system_server所在的进程
 - 每个App都会将系统的资源，系统的类都加载一遍吗
-  - java的类加载机制，加载一个类之前，会先加载这个类的父类。(也就是说MainActivity加载前会先加载AppCompatActivity、FragmentActivity等)。所以“系统的资源，系统的类的加载”并不在App进程中进行，而是App进程的父进程中进行的(也就是Zygote进程中进行)。
+  - java的类加载机制，加载一个类之前，会先加载这个类的父类。(也就是说MainActivity加载前会先加载AppCompatActivity、FragmentActivity等)。所以“系统的资源，系统的类的加载”并不在App进程中进行，而是在App进程的父进程中进行的(也就是Zygote进程中进行)。
 - 为什么一个Activity需要声明在AndroidManifest.xml中
   - 假如没有AndroidManifest.xml，那么打开一个App就需要如下操作：
     - 1、遍历 /data/app 文件夹 
