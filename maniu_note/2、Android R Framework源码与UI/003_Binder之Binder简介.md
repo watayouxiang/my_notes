@@ -1,4 +1,4 @@
-# Binder简介
+# binder简介
 
 Linux已有进程通信（管道、共享内存、Socket、File）都不能满足安卓系统，所以才要会有Binder机制。
 
