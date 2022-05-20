@@ -1,10 +1,7 @@
 # servicemanager源码分析
 
-> 源码在线查阅网站：
+> 源码在线查阅网站：http://aospxref.com/android-9.0.0_r61/xref/frameworks/
 >
-> http://androidxref.com/9.0.0_r3/
->
-> http://aospxref.com/android-9.0.0_r61/xref/frameworks/
 
 ## ServiceManager源码位置
 
