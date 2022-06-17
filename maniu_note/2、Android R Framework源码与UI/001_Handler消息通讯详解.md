@@ -820,3 +820,92 @@ void checkThread() {
 - TextView已经被加入了ViewTree，但是被设置了固定宽高，且开启了硬件加速
 
 子线程操作View 确实不一定导致Crash，那是因为刚好满足一定的条件并没有触发checkThread机制，但这并不代表我们在开发过程中可以这么写，其实我们还是应该遵循google的建议，更新UI始终在UI线程里去做。
+
+# --- 读后笔记 ---
+
+## Handler是什么？
+
+- Handler是用于线程间切换并传递数据的工具。Handler组成有：Meaasge, MessageQueue, Looper, Handler, Thread。
+- Message
+  - Message是单向链表，通过next成员变量持有下一个消息的引用。
+  - 内部设计有消息回收池，通过持有第一个消息sPool的形式持有整个回收池，回收池的大小通过sPoolSize记录。获取消息尽量通过Message.obtain()方法从回收池中复用。
+  - Message持有Handler的引用
+- MessageQueue
+  - 消息队列是单向链表数据结构，通过持有第一个消息从而持有所有消息
+  - 消息入队 boolean enqueueMessage(Message msg, long when)：遍历消息队列，按时间增长的顺序将消息入队
+  - 消息出队 void removeMessages(Handler h, int what, Object object)：移除第一个消息
+  - 取消息 Message next()：取出第一条消息，如果发送消息时间未到，则进行阻塞处理
+    - 该方法是阻塞式方法，阻塞来自于native 方法 nativePollOnce(ptr, nextPollTimeoutMillis)
+    - 内部实现基于 linux 的 IO 复用模型中的 epoll 机制
+    - 当 linux 内核缓冲区数据不为空时发出可读信号，当数据未满时发出可写信号
+    - 举个例子：类似于我委托黄牛买车票，当黄牛上抢到票时，再通知我去火车站交钱取票
+- Looper
+  - 通过 Looper.prepare() 绑定线程，实现一个线程只能有一个Looper对象
+    - 每一个线程都有一个成员变量 ThreadLocal.ThreadLocalMap，该 Map 以 ThreadLocal 作为 key，以 Looper 作为值。再通过 threadLocal.get() 获取 Looper。
+    - 线程绑定只能执行一次
+  - 通过 Looper.loop() 开启轮询获取消息并发送消息到绑定的线程
+    - 通过死循环调用 MessageQueue.next 方法获取消息，再通过 msg.target.dispatchMessage(msg) 方法发送消息到 Looper 绑定的线程中去（这也是为什么要让消息对象持有Handler引用的原因）
+  - 通过 Looper.quit() 停止轮询
+    - 绑定UI线程的Looper对象不能被关闭
+- Handler
+  - 发送消息最终调用的是 messageQueue.enqueueMessage 方法
+  - 发送延迟消息 public final boolean sendMessageDelayed(Message msg, long delayMillis)
+    - 通过 SystemClock.uptimeMillis() + delayMillis 的方式计算发送时间
+  - 接收消息的方法是 public void handleMessage(Message msg)
+  - 一个Looper对象可以对应多个 Handler 对象
+  - 可以通过 new Handler(Looper.getMainLooper()) 方式创建运行在主线程的 Handler
+
+## 为什么要设计Handler？
+
+之所以要设计Handler，是因为安卓UI线程的工作机制导致的。谷歌建议所有UI工作应该放在UI线程中执行，安卓UI线程之所以设计成单线程模式，而不采取线程同步方式，原因如下：
+
+- UI是高频可变的
+- UI是时间的响应要求极高
+- UI是需要批量操作的
+
+## Handler的用法？
+
+handler内存泄漏的原因
+
+- handler内存泄漏的原因是短生命周期的对象持有长生命周期的对象造成的
+- Thread -- Looper -- MessageQueue -- Message -- Handler -- Activity
+
+```java
+package com.watayouxiang.sourcedemo;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
+
+public class MainActivity extends AppCompatActivity  {
+    final static String TAG = "Tao";
+    MyHandler handler = new MyHandler();
+
+    static class MyHandler extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            Log.d(TAG, msg.what + "------->" + msg.obj);
+        }
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Message message = handler.obtainMessage();
+                message.what = 100;
+                message.obj = "你好";
+                handler.sendMessage(message);
+            }
+        }).start();
+    }
+}
+```
