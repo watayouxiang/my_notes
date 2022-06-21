@@ -828,7 +828,8 @@ void checkThread() {
 - Handler是用于线程间切换并传递数据的工具。Handler组成有：Meaasge, MessageQueue, Looper, Handler, Thread。
 - Message
   - Message是单向链表，通过next成员变量持有下一个消息的引用。
-  - 内部设计有消息回收池，通过持有第一个消息sPool的形式持有整个回收池，回收池的大小通过sPoolSize记录。获取消息尽量通过Message.obtain()方法从回收池中复用。
+  - 内部设计有消息回收池，通过持有第一个消息sPool的形式持有整个回收池，回收池的大小通过sPoolSize记录。
+  - 获取消息尽量通过Message.obtain()方法从回收池中复用。
   - Message持有Handler的引用
 - MessageQueue
   - 消息队列是单向链表数据结构，通过持有第一个消息从而持有所有消息
