@@ -69,3 +69,31 @@ binder 是 Android 中主要的跨进程通信方式，binder 驱动和 service 
 
 binder 包括 BinderProxy、BpBinder 等各种 Binder 实体，以及对 binder 驱动操作的 ProcessState、IPCThreadState 封装，再加上 binder 驱动内部的结构体、命令处理，整体贯穿 Java、Native 层，涉及用户态、内核态，往上可以说到 Service、AIDL 等，往下可以说到 mmap、binder 驱动设备，是相当庞大、繁琐的一个机制。
 
+## --- 阅读笔记 ---
+
+- Binder是什么？
+  - Binder是安卓自己实现的 IPC（InterProcess Communication）进程间通信框架。
+- 为什么要开发Binder框架？
+  - 安卓是linux内核，linux已有的 IPC 方式有（管道、共享内存、Socket、File）均不满足需求。
+    - 安卓需要的是 C/S 模型，而管道是 1v1 模型
+    - 共享内存方式虽然效率最高，但安全性最差
+    - Socket虽然是 C/S 模型，但效率太低
+    - File 磁盘读写方式安全性也不高
+  - Binder的优点
+    - 安全性高：Binder为每个App分配UID，同时支持实名、匿名方式，所以安全性好
+    - 效率高：Binder只需要一次拷贝
+  - Binder的底层原理
+    - Binder底层基于mmap函数，而mmap的实现机制依赖于，一个页框可以对应多个页，也就是说一个物理存储空间可以映射给多个进程的多个虚拟内存空间。那么只要把物理内存映射给App，那么App就能够直接访问数据，从而避免拷贝。
+    - 首先通过copy_from_user函数，把数据从 “App1的用户空间” 拷贝到 “内核空间”。内核空间有 “内核缓存区” 和 “数据接收缓冲区”，它们存在一对一映射关系，而 “数据接收缓冲区” 又与 “App2的用户空间” 存在映射关系，所以App2可以直接拿到数据接收缓存区中的数据，也就是App1的数据。
+- Binder相关问题准备
+  - Binder少拷贝发生在客户端还是服务端？
+    - Binder少拷贝一次发生在服务端，Binder不需要调用 copy_to_user 
+  - Binder一次最多能拷贝多大的数据？
+    - 1M-8K数据，Binder驱动层中的ProcessState.cpp文件定义了BINDER_VM_SIZE为 (1M-8K)
+  - mmap是如何实现物理内存和虚拟内存的映射的？
+    - 主要依赖于MMU内存管理单元实现，MMU的功能是把物理地址和虚拟地址进行相互转换
+  - 为什么会有MMU，MMU存在的意义是什么？（linux分页机制）
+    - 为了实现能运行多个程序，且能运行比内存要大的程序，从而有了分页机制。
+    - 比如32位操作系统，最大能支持4G内存，但大型的程序所要占用的内存必定不止4G。
+    - 基于程序的局部性原则，在很短的时间内，只有很少的一部分代码会被CPU执行。
+    - 所以当虚拟地址和物理地址进行映射时，会先去交换区中找运行所需代码，如果没有，才会去获取物理地址中的代码，并将该代码放入交换区中。
