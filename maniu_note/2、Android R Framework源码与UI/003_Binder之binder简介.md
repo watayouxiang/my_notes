@@ -88,6 +88,8 @@ binder 包括 BinderProxy、BpBinder 等各种 Binder 实体，以及对 binder 
 - Binder相关问题准备
   - Binder少拷贝发生在客户端还是服务端？
     - Binder少拷贝一次发生在服务端，Binder不需要调用 copy_to_user 
+  - copy_from_user 调用了几次？
+    - copy_from_user 调用了两次，一次是数据包的拷贝，一次是数据头的拷贝。
   - Binder一次最多能拷贝多大的数据？
     - 1M-8K数据，Binder驱动层中的ProcessState.cpp文件定义了BINDER_VM_SIZE为 (1M-8K)
   - mmap是如何实现物理内存和虚拟内存的映射的？
