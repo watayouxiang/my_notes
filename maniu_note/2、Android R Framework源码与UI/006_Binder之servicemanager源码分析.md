@@ -93,89 +93,79 @@ public class WtServiceManager extends Service {
   - aidl 生成的java类 WtBinderInterface.java 中的 Stub.Proxy.mRemote 对象就是 BinderProxy。
 - 服务端
 
-### 阅读Binder源码,验证Proxy->BinderProxy->BpBinder
+### 阅读Binder源码
+
+> - 验证 Stub.Proxy # mRemote 是 BinderProxy
+> - BinderProxy 是 c++ 对象 BpBinder 的代理类
 
 - [SystemServer.java](http://aospxref.com/android-9.0.0_r61/xref/frameworks/base/services/java/com/android/server/SystemServer.java)
 
   - ```
-    664          // Set up the Application instance for the system process and get started.
-    666          mActivityManagerService.setSystemProcess();
+    664 // Set up the Application instance for the system process and get started.
+    666 mActivityManagerService.setSystemProcess();
     ```
 
 - [ActivityManagerService.java](http://aospxref.com/android-9.0.0_r61/xref/frameworks/base/services/core/java/com/android/server/am/ActivityManagerService.java)
 
   - ```
-    2722             ServiceManager.addService(Context.ACTIVITY_SERVICE, this, /* allowIsolated= */ true,
-    2723                     DUMP_FLAG_PRIORITY_CRITICAL | DUMP_FLAG_PRIORITY_NORMAL | DUMP_FLAG_PROTO);
+    2722 ServiceManager.addService(Context.ACTIVITY_SERVICE, this, /* allowIsolated= */ true, 
+    2723     DUMP_FLAG_PRIORITY_CRITICAL | DUMP_FLAG_PRIORITY_NORMAL | DUMP_FLAG_PROTO);
     ```
 
 - [ServiceManager.java](http://aospxref.com/android-9.0.0_r61/xref/frameworks/base/core/java/android/os/ServiceManager.java)
 
   - ```
-    // getIServiceManager()   										返回的是 ServiceManagerNative.ServiceManagerProxy
-    // getIServiceManager().addService(...)				
-    // 						1）ServiceManagerNative.ServiceManagerProxy # mRemote.transact(...) 发送消息
-    //						2）Binder.BinderProxy # transact(...)
-    //						3）Binder # public native boolean transactNative(...)
-    //						4）android_util_Binder.cpp # android_os_BinderProxy_transact(...)
+    // getIServiceManager().addService(...)
+    // 相当于：ServiceManagerNative.ServiceManagerProxy.addService(...)
+    // 跟踪进去：mRemote.transact(...);
+    // 相当于：Binder.BinderProxy.transact(...)
+    // 跟踪进去：Binder.BinderProxy.transactNative(...);
+    // 跟踪进去：android_util_Binder.cpp # android_os_BinderProxy_transact(...)
     
-    184              getIServiceManager().addService(name, service, allowIsolated, dumpPriority);
+    184 getIServiceManager().addService(name, service, allowIsolated, dumpPriority);
     ```
 
   - ```
     // 最关键的代码
-    // 1、BinderInternal.getContextObject()					返回的是 BinderProxy
-    // 2、Binder.allowBlocking(...)									返回的是 BinderProxy
-    // 3、ServiceManagerNative.asInterface(...)			返回的是 ServiceManagerNative.ServiceManagerProxy
-    // 														ServiceManagerNative.ServiceManagerProxy 中的 mRemote 就是 BinderProxy
-    //														transactNative(code, data, reply, flags);
+    // ServiceManagerNative.asInterface(Binder.allowBlocking(BinderInternal.getContextObject()))
+    // 相当于：ServiceManagerNative.asInterface(Binder.allowBlocking(BinderProxy))
+    // 相当于：ServiceManagerNative.asInterface(BinderProxy)
+    // 相当于：ServiceManagerNative.ServiceManagerProxy
+    //          ServiceManagerNative.ServiceManagerProxy 中的 mRemote 就是 BinderProxy
     
-    106          // Find the service manager
-    107          sServiceManager = ServiceManagerNative
-    108                  .asInterface(Binder.allowBlocking(BinderInternal.getContextObject()));
+    106 // Find the service manager
+    107 sServiceManager = ServiceManagerNative
+    108      .asInterface(Binder.allowBlocking(BinderInternal.getContextObject()));
     ```
 
 - [BinderInternal.java](http://aospxref.com/android-9.0.0_r61/xref/frameworks/base/core/java/com/android/internal/os/BinderInternal.java)
 
   - ```
-    // 通过jni方法得到 IBinder
-    public static final native IBinder getContextObject();
+    97 public static final native IBinder getContextObject();
     ```
-
+  
 - [android_util_Binder.cpp](http://aospxref.com/android-9.0.0_r61/xref/frameworks/base/core/jni/android_util_Binder.cpp)
 
   - ```
-    { "getContextObject", "()Landroid/os/IBinder;", (void*)android_os_BinderInternal_getContextObject }
+    1066 { "getContextObject", "()Landroid/os/IBinder;", (void*)android_os_BinderInternal_getContextObject },
     ```
 
   - ```
-    977  static jobject android_os_BinderInternal_getContextObject(JNIEnv* env, jobject clazz)
-    978  {
-    				 // 这个就是 c++ 的 BpBinder
-    979      sp<IBinder> b = ProcessState::self()->getContextObject(NULL);
-    				 // 构建一个java对象的 BinderProxy，BinderProxy 是 BpBinder 的代理
-    980      return javaObjectForIBinder(env, b);
-    981  }
+    // 这个就是 c++ 的 BpBinder
+    979 sp<IBinder> b = ProcessState::self()->getContextObject(NULL);
+    
+    // 构建一个java的 BinderProxy，BinderProxy 是 BpBinder 的代理
+    980 return javaObjectForIBinder(env, b);
     ```
 
 - [ProcessState.cpp](http://aospxref.com/android-9.0.0_r61/xref/frameworks/native/libs/binder/ProcessState.cpp)
 
   - ```
-    110  sp<IBinder> ProcessState::getContextObject(const sp<IBinder>& /*caller*/)
-    111  {
-    112      return getStrongProxyForHandle(0);
-    113  }
+    112 return getStrongProxyForHandle(0);
     ```
-
+    
   - ```
-    244  sp<IBinder> ProcessState::getStrongProxyForHandle(int32_t handle)
-    245  {
-    246      sp<IBinder> result;
-    ......					 // 可以知道，IBinder 就是 BpBinder 对象
-    285              b = BpBinder::create(handle);
-    286              e->binder = b;
-    ......
-    298      return result;
-    299  }
+    // 这里创建里 c++ 的BpBinder 对象
+    285 b = BpBinder::create(handle);
     ```
 
