@@ -1011,3 +1011,24 @@ public class MainActivity extends AppCompatActivity {
     }
 }
 ```
+
+## --- 读后笔记 ---
+
+- ServiceManager
+
+  - CacheCenter 缓存 “对象、类、类名、方法、方法参数” 信息
+
+  - BBinder 服务端对象，接收来自客户端的消息，并缓存到 CacheCenter
+
+- BinderIPC
+
+  - 注册服务
+    - 将 App1 接口的实现类（类、类名、方法、方法参数）缓存进 CacheCenter
+
+  - 发现服务
+    - 先构造出 App1 的接口实现类，存入 CacheCenter
+  - 调用服务
+    - BpBinder 从 CacheCenter 中取 App1 的接口实现类，并调用
+      - 通过动态代理方式返回 BpBinder 的动态代理 BinderProxy 给 App2
+      - App2 调用 BinderProxy，相当于调用 BpBinder
+      - BpBinder 内部持有 App1 的接口实现类，从而 App2 实现对 App1 的调用
