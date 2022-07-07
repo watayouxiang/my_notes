@@ -50,3 +50,40 @@
 - volatile通过内存屏障来防止指令重排，从而保障数据的有序性
 - volatile通过Lock指令，从而禁止cpu高速缓存，来解决可见性问题。
 - Lock指令，它本意是禁止高速缓存来解决可见性问题，但实际上在这里，它是一种内存屏障的功能。也就是说针对当前的硬件环境，JMM层面采用Lock指令作为内存屏障来解决可见性问题。
+
+5）代码举例
+
+```java
+public class Test {
+    public static void main(String[] args) {
+        Aobling a = new Aobling();
+        a.start();
+        for (; ; ) {
+            if (a.isFlag()) {
+                System.out.println("有点东西");
+            }
+        }
+    }
+}
+
+class Aobling extends Thread {
+    // 不加 volatile 的话，会导致无法打印 “有点东西”
+    // private volatile boolean flag = false;
+    private boolean flag = false;
+
+    public boolean isFlag() {
+        return flag;
+    }
+
+    @Override
+    public void run() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        flag = true;
+        System.out.println("flag = " + flag);
+    }
+}
+```
