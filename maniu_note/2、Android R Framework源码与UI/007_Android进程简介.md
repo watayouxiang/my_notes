@@ -42,3 +42,43 @@
 ## Android启动流程
 
 <img src="003_Binder之binder源码分析.assets/image-20220323164358866.png" alt="image-20220323164358866" style="zoom:50%;" />
+
+# --- 读后笔记 ---
+
+## Framework层关键进程和线程
+
+- (init)
+  - (service_manager)
+  - (zygote)
+    - (system_server)
+      - AMS
+        - (launcher)
+      - PMS
+      - WMS
+    - (app)
+      - ActivityThread
+      - ApplicationThread
+      - Instrumentation
+
+## app启动过程
+
+<img src="003_Binder之binder源码分析.assets/image-20220322213705158.png" alt="image-20220322213705158" style="zoom:45%;" />
+
+完整版
+
+1. launcher.ActivityManagerProxy ----> system_server.AMS (binder)
+2. system_server.AMS ----> zygote (socket)
+3. zygote ----> app (socket)
+4. app ----> system_server.AMS (binder)
+5. system_server.AMS ----> system_server.ApplicationThreadProxy
+6. system_server.ApplicationThreadProxy ----> app.ApplicationThread (binder)
+7. app.ApplicationThread ----> app.ActivityThread (handler)
+8. app.ActivityThread ----> Activity
+
+精简版
+
+1. launcher ----> system_server (binder)
+2. system_server ----> zygote (socket)
+3. zygote ----> app (socket)
+4. app ----> system_server (binder)
+5. system_server ----> app (binder)
